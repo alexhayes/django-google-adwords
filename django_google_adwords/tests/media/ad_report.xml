@@ -1,0 +1,182 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<report>
+	<report-name name='Ad Performance Report' />
+	<date-range date='Jul 13, 2014' />
+	<table>
+		<columns>
+			<column name='currency' display='Currency' />
+			<column name='account' display='Account' />
+			<column name='timeZone' display='Time zone' />
+			<column name='adGroupID' display='Ad group ID' />
+			<column name='adGroup' display='Ad group' />
+			<column name='adGroupState' display='Ad group state' />
+			<column name='adType' display='Ad type' />
+			<column name='avgCPC' display='Avg. CPC' />
+			<column name='avgCPM' display='Avg. CPM' />
+			<column name='avgPosition' display='Avg. position' />
+			<column name='campaignID' display='Campaign ID' />
+			<column name='campaign' display='Campaign' />
+			<column name='campaignState' display='Campaign state' />
+			<column name='clicks' display='Clicks' />
+			<column name='clickConversionRate' display='Click conversion rate' />
+			<column name='convRate' display='Conv. rate' />
+			<column name='convertedClicks' display='Converted clicks' />
+			<column name='conversions' display='Conversions' />
+			<column name='cost' display='Cost' />
+			<column name='costConvertedClick' display='Cost / converted click' />
+			<column name='costConv' display='Cost / conv.' />
+			<column name='destinationURL' display='Destination URL' />
+			<column name='ctr' display='CTR' />
+			<column name='descriptionLine1' display='Description line 1' />
+			<column name='descriptionLine2' display='Description line 2' />
+			<column name='device' display='Device' />
+			<column name='displayURL' display='Display URL' />
+			<column name='ad' display='Ad' />
+			<column name='adID' display='Ad ID' />
+			<column name='impressions' display='Impressions' />
+			<column name='adState' display='Ad state' />
+			<column name='valueConvertedClick' display='Value / converted click' />
+			<column name='valueConv' display='Value / conv.' />
+			<column name='viewThroughConv' display='View-through conv.' />
+			<column name='day' display='Day' />
+		</columns>
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000000'
+			adGroup='Ad Group #7' adGroupState='enabled' adType='Text ad'
+			avgCPC='0' avgCPM='0' avgPosition='3.4' campaignID='10000003'
+			campaign='Campaign #11' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 2'
+			descriptionLine2='Bacon ipsum 2' device='Computers'
+			displayURL='example.com/location-4/sub-1/' ad='Ad Group #7'
+			adID='10000000003' impressions='13' adState='enabled'
+			valueConvertedClick='0.0' valueConv='0.0' viewThroughConv='0'
+			day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000000'
+			adGroup='Ad Group #7' adGroupState='enabled' adType='Text ad'
+			avgCPC='0' avgCPM='0' avgPosition='3.8' campaignID='10000003'
+			campaign='Campaign #11' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 2'
+			descriptionLine2='Bacon ipsum 2' device='Tablets with full browsers'
+			displayURL='example.com/location-4/sub-1/' ad='Ad Group #7'
+			adID='10000000003' impressions='4' adState='enabled'
+			valueConvertedClick='0.0' valueConv='0.0' viewThroughConv='0'
+			day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000003'
+			adGroup='Ad Group #6' adGroupState='enabled' adType='Text ad'
+			avgCPC='3125000' avgCPM='223214286' avgPosition='2.7' campaignID='10000003'
+			campaign='Campaign #11' campaignState='active'
+			clicks='2' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='6250000'
+			costConvertedClick='0' costConv='0'
+			destinationURL='http://www.example.com/location-1/' ctr='7.14%'
+			descriptionLine1='Lorem ipsum 7' descriptionLine2='Bacon ipsum 7'
+			device='Computers' displayURL='www.example.com' ad='Ad Group #6'
+			adID='10000000004' impressions='28' adState='enabled'
+			valueConvertedClick='0.0' valueConv='0.0' viewThroughConv='0'
+			day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000003'
+			adGroup='Ad Group #6' adGroupState='enabled' adType='Text ad'
+			avgCPC='0' avgCPM='0' avgPosition='1.0' campaignID='10000003'
+			campaign='Campaign #11' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 7'
+			descriptionLine2='Bacon ipsum 7' device='Tablets with full browsers'
+			displayURL='www.example.com' ad='Ad Group #6' adID='10000000004'
+			impressions='1' adState='enabled' valueConvertedClick='0.0'
+			valueConv='0.0' viewThroughConv='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000003'
+			adGroup='Ad Group #6' adGroupState='enabled' adType='Text ad'
+			avgCPC='0' avgCPM='0' avgPosition='1.0' campaignID='10000003'
+			campaign='Campaign #11' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 4'
+			descriptionLine2='Bacon ipsum 4' device='Mobile devices with full browsers'
+			displayURL='www.example.com' ad='Ad #5' adID='10000000006'
+			impressions='6' adState='enabled' valueConvertedClick='0.0'
+			valueConv='0.0' viewThroughConv='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000000'
+			adGroup='Ad Group #7' adGroupState='enabled' adType='Text ad'
+			avgCPC='0' avgCPM='0' avgPosition='2.3' campaignID='10000003'
+			campaign='Campaign #11' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 1'
+			descriptionLine2='Bacon ipsum 1' device='Mobile devices with full browsers'
+			displayURL='www.example.com/location-4/' ad='Ad #5'
+			adID='10000000007' impressions='4' adState='enabled'
+			valueConvertedClick='0.0' valueConv='0.0' viewThroughConv='0'
+			day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000001'
+			adGroup='Ad Group #4' adGroupState='enabled'
+			adType='Text ad' avgCPC='0' avgCPM='0' avgPosition='0.0' campaignID='100000003'
+			campaign='Campaign #8' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 6'
+			descriptionLine2='Bacon ipsum 6' device='Computers'
+			displayURL='example.com/location-3/' ad='Ad #2'
+			adID='10000000001' impressions='0' adState='enabled'
+			valueConvertedClick='0.0' valueConv='0.0' viewThroughConv='0'
+			day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000004'
+			adGroup='Ad Group #5' adGroupState='enabled'
+			adType='Text ad' avgCPC='0' avgCPM='0' avgPosition='0.0' campaignID='100000003'
+			campaign='Campaign #8' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 5'
+			descriptionLine2='Bacon ipsum 5' device='Computers'
+			displayURL='example.com/location-5/' ad='Ad #3'
+			adID='10000000002' impressions='0' adState='enabled'
+			valueConvertedClick='0.0' valueConv='0.0' viewThroughConv='0'
+			day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000001'
+			adGroup='Ad Group #4' adGroupState='enabled'
+			adType='Text ad' avgCPC='0' avgCPM='0' avgPosition='0.0' campaignID='100000003'
+			campaign='Campaign #8' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 8'
+			descriptionLine2='Bacon ipsum 8' device='Mobile devices with full browsers'
+			displayURL='example.com/location-3/' ad='Ad #4'
+			adID='10000000005' impressions='0' adState='enabled'
+			valueConvertedClick='0.0' valueConv='0.0' viewThroughConv='0'
+			day='2014-07-13' />
+		<row currency='AUD' account='example.com'
+			timeZone='(GMT+10:00) Eastern Time - Melbourne, Sydney' adGroupID='1000000005'
+			adGroup='Ad Group #3' adGroupState='enabled'
+			adType='Text ad' avgCPC='0' avgCPM='0' avgPosition='0.0' campaignID='100000003'
+			campaign='Campaign #8' campaignState='active'
+			clicks='0' clickConversionRate='0.00%' convRate='0.00%'
+			convertedClicks='0' conversions='0' cost='0' costConvertedClick='0'
+			costConv='0' destinationURL='http://www.example.com/location-1/'
+			ctr='0.00%' descriptionLine1='Lorem ipsum 6'
+			descriptionLine2='Bacon ipsum 6' device='Computers'
+			displayURL='example.com/location-4/sub-2/' ad='Ad #1'
+			adID='10000000008' impressions='0' adState='enabled'
+			valueConvertedClick='0.0' valueConv='0.0' viewThroughConv='0'
+			day='2014-07-13' />
+	</table>
+</report>

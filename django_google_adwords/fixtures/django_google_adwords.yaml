@@ -1,0 +1,4 @@
+- fields: {account: null, account_id: 5918776172, created: ! '2014-07-09 21:54:27+00:00',
+    currency: null, last_synced: null, status: active, updated: ! '2014-07-09 21:54:27+00:00'}
+  model: django_google_adwords.account
+  pk: 1

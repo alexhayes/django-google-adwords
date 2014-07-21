@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<report>
+	<report-name name='Ad Group Performance Report' />
+	<date-range date='Jul 13, 2014' />
+	<table>
+		<columns>
+			<column name='currency' display='Currency' />
+			<column name='account' display='Account' />
+			<column name='adGroupID' display='Ad group ID' />
+			<column name='adGroup' display='Ad group' />
+			<column name='adGroupState' display='Ad group state' />
+			<column name='campaignID' display='Campaign ID' />
+			<column name='campaign' display='Campaign' />
+			<column name='campaignState' display='Campaign state' />
+			<column name='maxCPAConvertedClicks' display='Max. CPA (converted clicks)' />
+			<column name='valueEstTotalConv' display='Value / est. total conv.' />
+			<column name='bidStrategyID' display='Bid Strategy ID' />
+			<column name='bidStrategyName' display='Bid Strategy Name' />
+			<column name='bidStrategyType' display='Bid Strategy Type' />
+			<column name='contentImprShare' display='Content Impr. share' />
+			<column name='contentLostISRank' display='Content Lost IS (rank)' />
+			<column name='costEstTotalConv' display='Cost / est. total conv.' />
+			<column name='estCrossDeviceConv' display='Est. cross-device conv.' />
+			<column name='estTotalConvRate' display='Est. total conv. rate' />
+			<column name='estTotalConvValue' display='Est. total conv. value' />
+			<column name='estTotalConvValueClick' display='Est. total conv. value / click' />
+			<column name='estTotalConvValueCost' display='Est. total conv. value / cost' />
+			<column name='estTotalConv' display='Est. total conv.' />
+			<column name='searchExactMatchIS' display='Search Exact match IS' />
+			<column name='searchImprShare' display='Search Impr. share' />
+			<column name='searchLostISRank' display='Search Lost IS (rank)' />
+			<column name='valueConvertedClick' display='Value / converted click' />
+			<column name='valueConv' display='Value / conv.' />
+			<column name='viewThroughConv' display='View-through conv.' />
+			<column name='avgCPC' display='Avg. CPC' />
+			<column name='avgCPM' display='Avg. CPM' />
+			<column name='avgPosition' display='Avg. position' />
+			<column name='clicks' display='Clicks' />
+			<column name='clickConversionRate' display='Click conversion rate' />
+			<column name='convRate' display='Conv. rate' />
+			<column name='convertedClicks' display='Converted clicks' />
+			<column name='conversions' display='Conversions' />
+			<column name='cost' display='Cost' />
+			<column name='costConvertedClick' display='Cost / converted click' />
+			<column name='costConv' display='Cost / conv.' />
+			<column name='ctr' display='CTR' />
+			<column name='device' display='Device' />
+			<column name='impressions' display='Impressions' />
+			<column name='day' display='Day' />
+		</columns>
+		<row currency='AUD' account='example.com' adGroupID='1000000006'
+			adGroup='Ad Group #1' adGroupState='deleted' campaignID='10000006'
+			campaign='Campaign #5' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Computers' impressions='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com' adGroupID='1000000006'
+			adGroup='Ad Group #1' adGroupState='deleted' campaignID='10000006'
+			campaign='Campaign #5' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Mobile devices with full browsers' impressions='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com' adGroupID='1000000006'
+			adGroup='Ad Group #1' adGroupState='deleted' campaignID='10000006'
+			campaign='Campaign #5' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Tablets with full browsers' impressions='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com' adGroupID='1000000007'
+			adGroup='Ad Group #8' adGroupState='enabled' campaignID='10000005'
+			campaign='Ad Group #8' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Computers' impressions='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com' adGroupID='1000000007'
+			adGroup='Ad Group #8' adGroupState='enabled' campaignID='10000005'
+			campaign='Ad Group #8' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Mobile devices with full browsers' impressions='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com' adGroupID='1000000007'
+			adGroup='Ad Group #8' adGroupState='enabled' campaignID='10000005'
+			campaign='Ad Group #8' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Tablets with full browsers' impressions='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com' adGroupID='1000000008'
+			adGroup='Ad Group #9' adGroupState='enabled' campaignID='10000005'
+			campaign='Ad Group #8' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Computers' impressions='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com' adGroupID='1000000008'
+			adGroup='Ad Group #9' adGroupState='enabled' campaignID='10000005'
+			campaign='Ad Group #8' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Mobile devices with full browsers' impressions='0' day='2014-07-13' />
+		<row currency='AUD' account='example.com' adGroupID='1000000008'
+			adGroup='Ad Group #9' adGroupState='enabled' campaignID='10000005'
+			campaign='Ad Group #8' campaignState='paused'
+			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
+			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
+			contentLostISRank='--' costEstTotalConv='0' estCrossDeviceConv='--'
+			estTotalConvRate='0.00%' estTotalConvValue='0.0'
+			estTotalConvValueClick='0.0' estTotalConvValueCost='0.0'
+			estTotalConv='0' searchExactMatchIS='--' searchImprShare='--'
+			searchLostISRank='--' valueConvertedClick='0.0' valueConv='0.0'
+			viewThroughConv='0' avgCPC='0' avgCPM='0' avgPosition='0.0' clicks='0'
+			clickConversionRate='0.00%' convRate='0.00%' convertedClicks='0'
+			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
+			device='Tablets with full browsers' impressions='0' day='2014-07-13' />
+	</table>
+</report>
