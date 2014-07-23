@@ -19,12 +19,18 @@ class GoogleAdwordsConf(AppConf):
     LOCK_TIMEOUT = 10 * 60 # 10 minutes
     LOCK_ID = "googleadwords-lock"
     LOCK_WAIT = 1
+    
     # Days ago to start syncing the data from
     NEW_ACCOUNT_ACCOUNT_SYNC_DAYS = 61
     NEW_ACCOUNT_CAMPAIGN_SYNC_DAYS = 61
-    NEW_ACCOUNT_AD_GROUP_SYNC_DAYS = 31
+    NEW_ACCOUNT_ADGROUP_SYNC_DAYS = 31
     NEW_ACCOUNT_AD_SYNC_DAYS = 3
+    
     EXISTING_ACCOUNT_SYNC_DAYS = 3
+    EXISTING_CAMPAIGN_SYNC_DAYS = 3
+    EXISTING_ADGROUP_SYNC_DAYS = 3
+    EXISTING_AD_SYNC_DAYS = 3
+    
     REPORT_FILE_ROOT = 'googleadwords-reportfile'
     CELERY_QUEUE = 'celery'
     

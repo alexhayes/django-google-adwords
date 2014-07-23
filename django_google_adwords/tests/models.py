@@ -28,18 +28,19 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         self.assertEqual(account.account, None)
         self.assertEqual(account.currency, None)
-        self.assertEqual(account.last_synced, None)
+        self.assertEqual(account.account_last_synced, None)
         
         # Run the Account report populate
         account.start_sync()
         account.sync_account(report_file=report_file)
+        account.finish_account_sync()
         account.finish_sync()
         
         # Check that the Account fields have been updated
         account = Account.objects.get(pk=1)
         self.assertEqual(account.account, 'example.com')
         self.assertEqual(account.currency, 'AUD')
-        self.assertIsInstance(account.last_synced, datetime)
+        self.assertIsInstance(account.account_last_synced, date)
     
     def test_campaign_create(self):
         report_file = _get_report_file('campaign_report.xml')
@@ -48,6 +49,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_campaign(report_file=report_file)
+        account.finish_campaign_sync()
         account.finish_sync()
         
         # Check that the Campaigns have been populated
@@ -140,6 +142,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_campaign(report_file=report_file)
+        account.finish_campaign_sync()
         account.finish_sync()
         
         # Check campaign attributes populated correctly
@@ -152,6 +155,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         report_file = _get_report_file('campaign_report_update.xml')
         account.start_sync()
         account.sync_campaign(report_file=report_file)
+        account.finish_account_sync()
         account.finish_sync()
         
         # Check campaign attributes updated correctly
@@ -167,6 +171,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad_group(report_file=report_file)
+        account.finish_ad_group_sync()
         account.finish_sync()
           
         # Check that the Ad Groups have been populated
@@ -186,6 +191,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad_group(report_file=report_file)
+        account.finish_ad_group_sync()
         account.finish_sync()
           
         # Run the Ad Group report populate to update rows
@@ -193,6 +199,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad_group(report_file=report_file)
+        account.finish_ad_group_sync()
         account.finish_sync()
         
         # Check Ad Group attributes updated correctly
@@ -207,6 +214,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad(report_file=report_file)
+        account.finish_ad_sync()
         account.finish_sync()
         
         # Check that the Ads have been populated
@@ -230,6 +238,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad(report_file=report_file)
+        account.finish_ad_sync()
         account.finish_sync()
         
         # Run the Ad report populate update
@@ -237,6 +246,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad(report_file=report_file)
+        account.finish_ad_sync()
         account.finish_sync()
         
         # Check that the Ads have been updated and there are still only 9
@@ -261,6 +271,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_account(report_file=report_file)
+        account.finish_account_sync()
         account.finish_sync()
         
         # Check that the Daily Account Metrics have been populated
@@ -305,6 +316,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_account(report_file=report_file)
+        account.finish_account_sync()
         account.finish_sync()
 
         # Run the Account report populate with data to update
@@ -312,6 +324,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_account(report_file=report_file)
+        account.finish_account_sync()
         account.finish_sync()
         
         # Check that the Daily Account Metrics have been populated
@@ -356,6 +369,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_campaign(report_file=report_file)
+        account.finish_campaign_sync()
         account.finish_sync()
         
         # Check campaign metrics were created
@@ -403,6 +417,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_campaign(report_file=report_file)
+        account.finish_campaign_sync()
         account.finish_sync()
         
         # Run the Campaign report populate to update rows
@@ -410,6 +425,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_campaign(report_file=report_file)
+        account.finish_campaign_sync()
         account.finish_sync()
         
         # Check campaign metrics were created
@@ -457,6 +473,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad_group(report_file=report_file)
+        account.finish_ad_group_sync()
         account.finish_sync()
         
         # Check Ad Group metrics were created
@@ -507,6 +524,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad_group(report_file=report_file)
+        account.finish_ad_group_sync()
         account.finish_sync()
         
         # Run the Ad Group report populate update
@@ -514,6 +532,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad_group(report_file=report_file)
+        account.finish_ad_group_sync()
         account.finish_sync()
         
         # Check Ad Group metrics were created
@@ -564,6 +583,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad(report_file=report_file)
+        account.finish_ad_sync()
         account.finish_sync()
         
         # Check Ad Group metrics were created
@@ -597,6 +617,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad(report_file=report_file)
+        account.finish_ad_sync()
         account.finish_sync()
         
         # Run the Ad report update
@@ -604,6 +625,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         account = Account.objects.get(pk=1)
         account.start_sync()
         account.sync_ad(report_file=report_file)
+        account.finish_ad_sync()
         account.finish_sync()
         
         # Check Ad Group metrics were created and not duplicated

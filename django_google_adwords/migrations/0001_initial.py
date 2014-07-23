@@ -15,7 +15,10 @@ class Migration(SchemaMigration):
             ('status', self.gf('django.db.models.fields.CharField')(default='active', max_length=32)),
             ('account', self.gf('django.db.models.fields.CharField')(max_length=255, null=True, blank=True)),
             ('currency', self.gf('django.db.models.fields.CharField')(max_length=255, null=True, blank=True)),
-            ('last_synced', self.gf('django.db.models.fields.DateTimeField')(null=True, blank=True)),
+            ('account_last_synced', self.gf('django.db.models.fields.DateField')(null=True, blank=True)),
+            ('campaign_last_synced', self.gf('django.db.models.fields.DateField')(null=True, blank=True)),
+            ('ad_group_last_synced', self.gf('django.db.models.fields.DateField')(null=True, blank=True)),
+            ('ad_last_synced', self.gf('django.db.models.fields.DateField')(null=True, blank=True)),
             ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, blank=True)),
             ('updated', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, auto_now_add=True, blank=True)),
         ))
@@ -36,6 +39,7 @@ class Migration(SchemaMigration):
         # Adding model 'DailyAccountMetrics'
         db.create_table(u'django_google_adwords_dailyaccountmetrics', (
             (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('account', self.gf('django.db.models.fields.related.ForeignKey')(related_name='account_metrics', to=orm['django_google_adwords.Account'])),
             ('avg_cpc_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('avg_cpc', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('avg_cpm_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
@@ -53,10 +57,11 @@ class Migration(SchemaMigration):
             ('cost_conv_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('cost_conv', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('ctr', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('device', self.gf('django.db.models.fields.CharField')(max_length=50)),
+            ('device', self.gf('django.db.models.fields.CharField')(max_length=255)),
             ('impressions', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
             ('day', self.gf('django.db.models.fields.DateField')()),
             ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, blank=True)),
+            ('updated', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, auto_now_add=True, blank=True)),
             ('content_impr_share', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('content_lost_is_rank', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('cost_est_total_conv_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
@@ -70,7 +75,6 @@ class Migration(SchemaMigration):
             ('search_exact_match_is', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('search_impr_share', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('search_lost_is_rank', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('account', self.gf('django.db.models.fields.related.ForeignKey')(related_name='account_metrics', to=orm['django_google_adwords.Account'])),
             ('content_lost_is_budget', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('invalid_click_rate', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('invalid_clicks', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
@@ -92,18 +96,10 @@ class Migration(SchemaMigration):
         ))
         db.send_create_signal(u'django_google_adwords', ['Campaign'])
 
-        # Adding model 'CampaignAdGroupCommonMetrics'
-        db.create_table(u'django_google_adwords_campaignadgroupcommonmetrics', (
-            (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('bid_strategy_id', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
-            ('bid_strategy_name', self.gf('django.db.models.fields.CharField')(max_length=255, null=True, blank=True)),
-            ('bid_strategy_type', self.gf('django.db.models.fields.CharField')(max_length=40, null=True, blank=True)),
-        ))
-        db.send_create_signal(u'django_google_adwords', ['CampaignAdGroupCommonMetrics'])
-
         # Adding model 'DailyCampaignMetrics'
         db.create_table(u'django_google_adwords_dailycampaignmetrics', (
-            (u'campaignadgroupcommonmetrics_ptr', self.gf('django.db.models.fields.related.OneToOneField')(to=orm['django_google_adwords.CampaignAdGroupCommonMetrics'], unique=True, primary_key=True)),
+            (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('campaign', self.gf('django.db.models.fields.related.ForeignKey')(related_name='metrics', to=orm['django_google_adwords.Campaign'])),
             ('avg_cpc_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('avg_cpc', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('avg_cpm_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
@@ -121,10 +117,11 @@ class Migration(SchemaMigration):
             ('cost_conv_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('cost_conv', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('ctr', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('device', self.gf('django.db.models.fields.CharField')(max_length=50)),
+            ('device', self.gf('django.db.models.fields.CharField')(max_length=255)),
             ('impressions', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
             ('day', self.gf('django.db.models.fields.DateField')()),
             ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, blank=True)),
+            ('updated', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, auto_now_add=True, blank=True)),
             ('content_impr_share', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('content_lost_is_rank', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('cost_est_total_conv_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
@@ -138,14 +135,16 @@ class Migration(SchemaMigration):
             ('search_exact_match_is', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('search_impr_share', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('search_lost_is_rank', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('value_converted_click', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('value_conv', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('view_through_conv', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
-            ('campaign', self.gf('django.db.models.fields.related.ForeignKey')(related_name='metrics', to=orm['django_google_adwords.Campaign'])),
+            ('bid_strategy_id', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
+            ('bid_strategy_name', self.gf('django.db.models.fields.CharField')(max_length=255, null=True, blank=True)),
+            ('bid_strategy_type', self.gf('django.db.models.fields.CharField')(max_length=40, null=True, blank=True)),
             ('content_lost_is_budget', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('invalid_click_rate', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('invalid_clicks', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
             ('search_lost_is_budget', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
+            ('value_converted_click', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
+            ('value_conv', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
+            ('view_through_conv', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
         ))
         db.send_create_signal(u'django_google_adwords', ['DailyCampaignMetrics'])
 
@@ -163,7 +162,8 @@ class Migration(SchemaMigration):
 
         # Adding model 'DailyAdGroupMetrics'
         db.create_table(u'django_google_adwords_dailyadgroupmetrics', (
-            (u'campaignadgroupcommonmetrics_ptr', self.gf('django.db.models.fields.related.OneToOneField')(to=orm['django_google_adwords.CampaignAdGroupCommonMetrics'], unique=True, primary_key=True)),
+            (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('ad_group', self.gf('django.db.models.fields.related.ForeignKey')(related_name='metrics', to=orm['django_google_adwords.AdGroup'])),
             ('avg_cpc_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('avg_cpc', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('avg_cpm_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
@@ -181,10 +181,11 @@ class Migration(SchemaMigration):
             ('cost_conv_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('cost_conv', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('ctr', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('device', self.gf('django.db.models.fields.CharField')(max_length=50)),
+            ('device', self.gf('django.db.models.fields.CharField')(max_length=255)),
             ('impressions', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
             ('day', self.gf('django.db.models.fields.DateField')()),
             ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, blank=True)),
+            ('updated', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, auto_now_add=True, blank=True)),
             ('content_impr_share', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('content_lost_is_rank', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('cost_est_total_conv_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
@@ -198,13 +199,15 @@ class Migration(SchemaMigration):
             ('search_exact_match_is', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('search_impr_share', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('search_lost_is_rank', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('value_converted_click', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('value_conv', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('view_through_conv', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
-            ('ad_group', self.gf('django.db.models.fields.related.ForeignKey')(related_name='metrics', to=orm['django_google_adwords.AdGroup'])),
+            ('bid_strategy_id', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
+            ('bid_strategy_name', self.gf('django.db.models.fields.CharField')(max_length=255, null=True, blank=True)),
+            ('bid_strategy_type', self.gf('django.db.models.fields.CharField')(max_length=40, null=True, blank=True)),
             ('max_cpa_converted_clicks_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('max_cpa_converted_clicks', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('value_est_total_conv', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
+            ('value_converted_click', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
+            ('value_conv', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
+            ('view_through_conv', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
         ))
         db.send_create_signal(u'django_google_adwords', ['DailyAdGroupMetrics'])
 
@@ -228,6 +231,7 @@ class Migration(SchemaMigration):
         # Adding model 'DailyAdMetrics'
         db.create_table(u'django_google_adwords_dailyadmetrics', (
             (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('ad', self.gf('django.db.models.fields.related.ForeignKey')(related_name='metrics', to=orm['django_google_adwords.Ad'])),
             ('avg_cpc_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('avg_cpc', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('avg_cpm_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
@@ -245,14 +249,14 @@ class Migration(SchemaMigration):
             ('cost_conv_currency', self.gf('money.contrib.django.models.fields.CurrencyField')(default='AUD', max_length=3)),
             ('cost_conv', self.gf('money.contrib.django.models.fields.MoneyField')(decimal_places=2, default=0, no_currency_field=True, max_digits=12, blank=True, null=True)),
             ('ctr', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
-            ('device', self.gf('django.db.models.fields.CharField')(max_length=50)),
+            ('device', self.gf('django.db.models.fields.CharField')(max_length=255)),
             ('impressions', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
             ('day', self.gf('django.db.models.fields.DateField')()),
             ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, blank=True)),
+            ('updated', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, auto_now_add=True, blank=True)),
             ('value_converted_click', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('value_conv', self.gf('django.db.models.fields.DecimalField')(null=True, max_digits=12, decimal_places=2, blank=True)),
             ('view_through_conv', self.gf('django.db.models.fields.BigIntegerField')(null=True, blank=True)),
-            ('ad', self.gf('django.db.models.fields.related.ForeignKey')(related_name='metrics', to=orm['django_google_adwords.Ad'])),
         ))
         db.send_create_signal(u'django_google_adwords', ['DailyAdMetrics'])
 
@@ -279,9 +283,6 @@ class Migration(SchemaMigration):
         # Deleting model 'Campaign'
         db.delete_table(u'django_google_adwords_campaign')
 
-        # Deleting model 'CampaignAdGroupCommonMetrics'
-        db.delete_table(u'django_google_adwords_campaignadgroupcommonmetrics')
-
         # Deleting model 'DailyCampaignMetrics'
         db.delete_table(u'django_google_adwords_dailycampaignmetrics')
 
@@ -306,10 +307,13 @@ class Migration(SchemaMigration):
             'Meta': {'object_name': 'Account'},
             'account': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
             'account_id': ('django.db.models.fields.BigIntegerField', [], {'unique': 'True'}),
+            'account_last_synced': ('django.db.models.fields.DateField', [], {'null': 'True', 'blank': 'True'}),
+            'ad_group_last_synced': ('django.db.models.fields.DateField', [], {'null': 'True', 'blank': 'True'}),
+            'ad_last_synced': ('django.db.models.fields.DateField', [], {'null': 'True', 'blank': 'True'}),
+            'campaign_last_synced': ('django.db.models.fields.DateField', [], {'null': 'True', 'blank': 'True'}),
             'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
             'currency': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'last_synced': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
             'status': ('django.db.models.fields.CharField', [], {'default': "'active'", 'max_length': '32'}),
             'updated': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'auto_now_add': 'True', 'blank': 'True'})
         },
@@ -360,13 +364,6 @@ class Migration(SchemaMigration):
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'updated': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'auto_now_add': 'True', 'blank': 'True'})
         },
-        u'django_google_adwords.campaignadgroupcommonmetrics': {
-            'Meta': {'object_name': 'CampaignAdGroupCommonMetrics'},
-            'bid_strategy_id': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
-            'bid_strategy_name': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
-            'bid_strategy_type': ('django.db.models.fields.CharField', [], {'max_length': '40', 'null': 'True', 'blank': 'True'}),
-            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'})
-        },
         u'django_google_adwords.dailyaccountmetrics': {
             'Meta': {'object_name': 'DailyAccountMetrics'},
             'account': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'account_metrics'", 'to': u"orm['django_google_adwords.Account']"}),
@@ -394,7 +391,7 @@ class Migration(SchemaMigration):
             'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
             'ctr': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'day': ('django.db.models.fields.DateField', [], {}),
-            'device': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
+            'device': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
             'est_cross_device_conv': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'est_total_conv': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'est_total_conv_rate': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
@@ -408,17 +405,20 @@ class Migration(SchemaMigration):
             'search_exact_match_is': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'search_impr_share': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'search_lost_is_budget': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
-            'search_lost_is_rank': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'})
+            'search_lost_is_rank': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
+            'updated': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'auto_now_add': 'True', 'blank': 'True'})
         },
         u'django_google_adwords.dailyadgroupmetrics': {
-            'Meta': {'object_name': 'DailyAdGroupMetrics', '_ormbases': [u'django_google_adwords.CampaignAdGroupCommonMetrics']},
+            'Meta': {'object_name': 'DailyAdGroupMetrics'},
             'ad_group': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'metrics'", 'to': u"orm['django_google_adwords.AdGroup']"}),
             'avg_cpc': ('money.contrib.django.models.fields.MoneyField', [], {'decimal_places': '2', 'default': '0', 'no_currency_field': 'True', 'max_digits': '12', 'blank': 'True', 'null': 'True'}),
             'avg_cpc_currency': ('money.contrib.django.models.fields.CurrencyField', [], {'default': "'AUD'", 'max_length': '3'}),
             'avg_cpm': ('money.contrib.django.models.fields.MoneyField', [], {'decimal_places': '2', 'default': '0', 'no_currency_field': 'True', 'max_digits': '12', 'blank': 'True', 'null': 'True'}),
             'avg_cpm_currency': ('money.contrib.django.models.fields.CurrencyField', [], {'default': "'AUD'", 'max_length': '3'}),
             'avg_position': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
-            u'campaignadgroupcommonmetrics_ptr': ('django.db.models.fields.related.OneToOneField', [], {'to': u"orm['django_google_adwords.CampaignAdGroupCommonMetrics']", 'unique': 'True', 'primary_key': 'True'}),
+            'bid_strategy_id': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
+            'bid_strategy_name': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
+            'bid_strategy_type': ('django.db.models.fields.CharField', [], {'max_length': '40', 'null': 'True', 'blank': 'True'}),
             'click_conversion_rate': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'clicks': ('django.db.models.fields.IntegerField', [], {'null': 'True', 'blank': 'True'}),
             'content_impr_share': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
@@ -437,19 +437,21 @@ class Migration(SchemaMigration):
             'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
             'ctr': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'day': ('django.db.models.fields.DateField', [], {}),
-            'device': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
+            'device': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
             'est_cross_device_conv': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'est_total_conv': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'est_total_conv_rate': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'est_total_conv_value': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'est_total_conv_value_click': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'est_total_conv_value_cost': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
+            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'impressions': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'max_cpa_converted_clicks': ('money.contrib.django.models.fields.MoneyField', [], {'decimal_places': '2', 'default': '0', 'no_currency_field': 'True', 'max_digits': '12', 'blank': 'True', 'null': 'True'}),
             'max_cpa_converted_clicks_currency': ('money.contrib.django.models.fields.CurrencyField', [], {'default': "'AUD'", 'max_length': '3'}),
             'search_exact_match_is': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'search_impr_share': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'search_lost_is_rank': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
+            'updated': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'auto_now_add': 'True', 'blank': 'True'}),
             'value_conv': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'value_converted_click': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'value_est_total_conv': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
@@ -477,22 +479,25 @@ class Migration(SchemaMigration):
             'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
             'ctr': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'day': ('django.db.models.fields.DateField', [], {}),
-            'device': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
+            'device': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'impressions': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
+            'updated': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'auto_now_add': 'True', 'blank': 'True'}),
             'value_conv': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'value_converted_click': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'view_through_conv': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'})
         },
         u'django_google_adwords.dailycampaignmetrics': {
-            'Meta': {'object_name': 'DailyCampaignMetrics', '_ormbases': [u'django_google_adwords.CampaignAdGroupCommonMetrics']},
+            'Meta': {'object_name': 'DailyCampaignMetrics'},
             'avg_cpc': ('money.contrib.django.models.fields.MoneyField', [], {'decimal_places': '2', 'default': '0', 'no_currency_field': 'True', 'max_digits': '12', 'blank': 'True', 'null': 'True'}),
             'avg_cpc_currency': ('money.contrib.django.models.fields.CurrencyField', [], {'default': "'AUD'", 'max_length': '3'}),
             'avg_cpm': ('money.contrib.django.models.fields.MoneyField', [], {'decimal_places': '2', 'default': '0', 'no_currency_field': 'True', 'max_digits': '12', 'blank': 'True', 'null': 'True'}),
             'avg_cpm_currency': ('money.contrib.django.models.fields.CurrencyField', [], {'default': "'AUD'", 'max_length': '3'}),
             'avg_position': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
+            'bid_strategy_id': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
+            'bid_strategy_name': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
+            'bid_strategy_type': ('django.db.models.fields.CharField', [], {'max_length': '40', 'null': 'True', 'blank': 'True'}),
             'campaign': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'metrics'", 'to': u"orm['django_google_adwords.Campaign']"}),
-            u'campaignadgroupcommonmetrics_ptr': ('django.db.models.fields.related.OneToOneField', [], {'to': u"orm['django_google_adwords.CampaignAdGroupCommonMetrics']", 'unique': 'True', 'primary_key': 'True'}),
             'click_conversion_rate': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'clicks': ('django.db.models.fields.IntegerField', [], {'null': 'True', 'blank': 'True'}),
             'content_impr_share': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
@@ -512,13 +517,14 @@ class Migration(SchemaMigration):
             'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
             'ctr': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'day': ('django.db.models.fields.DateField', [], {}),
-            'device': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
+            'device': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
             'est_cross_device_conv': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'est_total_conv': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'est_total_conv_rate': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'est_total_conv_value': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'est_total_conv_value_click': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'est_total_conv_value_cost': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
+            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'impressions': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
             'invalid_click_rate': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'invalid_clicks': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'}),
@@ -526,6 +532,7 @@ class Migration(SchemaMigration):
             'search_impr_share': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'search_lost_is_budget': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'search_lost_is_rank': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
+            'updated': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'auto_now_add': 'True', 'blank': 'True'}),
             'value_conv': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'value_converted_click': ('django.db.models.fields.DecimalField', [], {'null': 'True', 'max_digits': '12', 'decimal_places': '2', 'blank': 'True'}),
             'view_through_conv': ('django.db.models.fields.BigIntegerField', [], {'null': 'True', 'blank': 'True'})
