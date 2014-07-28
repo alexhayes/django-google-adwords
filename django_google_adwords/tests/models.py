@@ -79,7 +79,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         c4 = Campaign.objects.get(campaign_id=10000003)
         self.assertEqual(c4.account, account)
         self.assertEqual(c4.campaign, 'Campaign #11')
-        self.assertEqual(c4.campaign_state, Campaign.STATE_ACTIVE)
+        self.assertEqual(c4.campaign_state, Campaign.STATE_ENABLED)
         self.assertEqual(c4.budget.amount, Decimal('100.0'))
         
         c5 = Campaign.objects.get(campaign_id=10000002)
@@ -121,19 +121,19 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         c11 = Campaign.objects.get(campaign_id=100000003)
         self.assertEqual(c11.account, account)
         self.assertEqual(c11.campaign, 'Campaign #8')
-        self.assertEqual(c11.campaign_state, Campaign.STATE_ACTIVE)
+        self.assertEqual(c11.campaign_state, Campaign.STATE_ENABLED)
         self.assertEqual(c11.budget.amount, Decimal('58.0'))
         
         c12 = Campaign.objects.get(campaign_id=100000002)
         self.assertEqual(c12.account, account)
         self.assertEqual(c12.campaign, 'Campaign #7')
-        self.assertEqual(c12.campaign_state, Campaign.STATE_ACTIVE)
+        self.assertEqual(c12.campaign_state, Campaign.STATE_ENABLED)
         self.assertEqual(c12.budget.amount, Decimal('105.0'))
         
         c13 = Campaign.objects.get(campaign_id=100000001)
         self.assertEqual(c13.account, account)
         self.assertEqual(c13.campaign, 'Campaign #2')
-        self.assertEqual(c13.campaign_state, Campaign.STATE_DELETED)
+        self.assertEqual(c13.campaign_state, Campaign.STATE_REMOVED)
         self.assertEqual(c13.budget.amount, Decimal('10.0'))
         
     def test_campaign_update(self):
@@ -161,7 +161,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         # Check campaign attributes updated correctly
         uc = Campaign.objects.get(campaign_id=10000006)
         self.assertEqual(uc.campaign, 'Campaign #6')
-        self.assertEqual(uc.campaign_state, Campaign.STATE_ACTIVE)
+        self.assertEqual(uc.campaign_state, Campaign.STATE_ENABLED)
         self.assertEqual(uc.budget.amount, Decimal('44.0'))
     
     def test_ad_group_create(self):
@@ -183,7 +183,7 @@ class DjangoGoogleAdwordsTestCase(FastFixtureTestCase):
         ad_group = AdGroup.objects.get(ad_group_id=1000000006)
         self.assertEqual(ad_group.campaign.campaign_id, 10000006)
         self.assertEqual(ad_group.ad_group, 'Ad Group #1')
-        self.assertEqual(ad_group.ad_group_state, AdGroup.STATE_DELETED)
+        self.assertEqual(ad_group.ad_group_state, AdGroup.STATE_REMOVED)
     
     def test_ad_group_update(self):
         # Run the Ad Group report populate

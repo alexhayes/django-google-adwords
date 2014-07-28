@@ -643,13 +643,13 @@ class DailyAccountMetrics(models.Model):
                 release_googleadwords_lock(DailyAccountMetrics, identifier)
 
 class Campaign(models.Model):
-    STATE_ACTIVE = 'active'
+    STATE_ENABLED = 'enabled'
     STATE_PAUSED = 'paused'
-    STATE_DELETED = 'deleted'
+    STATE_REMOVED = 'removed'
     STATE_CHOICES = (
-        (STATE_ACTIVE, 'Active'),
+        (STATE_ENABLED, 'Enabled'),
         (STATE_PAUSED, 'Paused'),
-        (STATE_DELETED, 'Deleted')
+        (STATE_REMOVED, 'Removed')
     )
     
     account = models.ForeignKey('django_google_adwords.Account', related_name='campaigns')
@@ -873,11 +873,11 @@ class DailyCampaignMetrics(models.Model):
 class AdGroup(models.Model):
     STATE_ENABLED = 'enabled'
     STATE_PAUSED = 'paused'
-    STATE_DELETED = 'deleted'
+    STATE_REMOVED = 'removed'
     STATE_CHOICES = (
         (STATE_ENABLED, 'Enabled'),
         (STATE_PAUSED, 'Paused'),
-        (STATE_DELETED, 'Deleted')
+        (STATE_REMOVED, 'Removed')
     )
     
     campaign = models.ForeignKey('django_google_adwords.Campaign', related_name='ad_groups')
@@ -1087,11 +1087,11 @@ class DailyAdGroupMetrics(models.Model):
 class Ad(models.Model):
     STATE_ENABLED = 'enabled'
     STATE_PAUSED = 'paused'
-    STATE_DELETED = 'deleted'
+    STATE_REMOVED = 'removed'
     STATE_CHOICES = (
         (STATE_ENABLED, 'Enabled'),
         (STATE_PAUSED, 'Paused'),
-        (STATE_DELETED, 'Deleted')
+        (STATE_REMOVED, 'Removed')
     )
     
     TYPE_DEPRECATED_AD = 'Other'
