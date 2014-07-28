@@ -21,7 +21,7 @@ from contextlib import contextmanager
 from django_toolkit.file import tempfile
 from django.core.files.base import File
 import xmltodict
-from django_google_adwords.errors import RateExceededError, ValidationError
+from django_google_adwords.errors import *
 from django.db.models.signals import post_delete
 from googleads.errors import GoogleAdsError
 from decimal import Decimal
@@ -302,6 +302,8 @@ class Account(models.Model):
         except RateExceededError, exc:
             logger.info("Caught RateExceededError for account '%s' - retrying in '%s' seconds.", self.pk, exc.retry_after_seconds)
             raise self.get_account_data.retry(exc, countdown=exc.retry_after_seconds)
+        except GoogleAdsError, exc:
+            raise InterceptedGoogleAdsError(exc, account_id=self.account_id)
     
     @task(name='Account.sync_account', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
     @ensure_self
@@ -413,6 +415,7 @@ class Account(models.Model):
                            'ContentRankLostImpressionShare',
                            'ConversionRate',
                            'ConversionRateManyPerClick',
+                           'ConversionValue',
                            'Conversions',
                            'ConversionsManyPerClick',
                            'Cost',
@@ -590,6 +593,7 @@ class DailyAccountMetrics(models.Model):
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
     conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Conv. rate')
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
+    total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
     cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
     cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
@@ -716,6 +720,7 @@ class Campaign(models.Model):
                             'ContentRankLostImpressionShare',
                             'ConversionRate',
                             'ConversionRateManyPerClick',
+                            'ConversionValue',
                             'Conversions',
                             'ConversionsManyPerClick',
                             'Cost',
@@ -806,6 +811,7 @@ class DailyCampaignMetrics(models.Model):
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
     conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Conv. rate')
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
+    total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
     cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
     cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
@@ -957,6 +963,7 @@ class AdGroup(models.Model):
                             'Clicks',
                             'ConversionRate',
                             'ConversionRateManyPerClick',
+                            'ConversionValue',
                             'Conversions',
                             'ConversionsManyPerClick',
                             'Cost',
@@ -1024,6 +1031,7 @@ class DailyAdGroupMetrics(models.Model):
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
     conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Conv. rate')
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
+    total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
     cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
     cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
@@ -1172,6 +1180,7 @@ class Ad(models.Model):
                             'Clicks',
                             'ConversionRate',
                             'ConversionRateManyPerClick',
+                            'ConversionValue',
                             'Conversions',
                             'ConversionsManyPerClick',
                             'Cost',
@@ -1222,6 +1231,7 @@ class DailyAdMetrics(models.Model):
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
     conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Conv. rate')
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
+    total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
     cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
     cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
@@ -1311,7 +1321,6 @@ class ReportFile(models.Model):
             @param client_customer_id: A string containing the Adwords Customer Client ID.
             @return OrderedDict containing report
             """
-            
             client = adwords_service(client_customer_id)
             report_downloader = client.GetReportDownloader(version=settings.GOOGLEADWORDS_CLIENT_VERSION)
             

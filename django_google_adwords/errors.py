@@ -6,6 +6,13 @@ class RateExceededError(Exception):
         self.retry_after_seconds = retry_after_seconds
         Exception.__init__(self, retry_after_seconds)
 
+class InterceptedGoogleAdsError(Exception):
+
+    def __init__(self, google_ads_error, account_id):
+        self.google_ads_error = google_ads_error
+        self.account_id = account_id
+        Exception.__init__(self, google_ads_error, account_id)
+
 class ValidationError(_ValidationError):
     
     def __init__(self, field_name, message):
