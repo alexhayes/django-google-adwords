@@ -171,7 +171,7 @@ class Account(models.Model):
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", Account.__name__, account.account_id)
                 release_googleadwords_lock(Account, account.account_id)
     
-    @task(name='Account.sync', ignore_result=True, queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync', ignore_result=True, queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     def sync(self, start=None, force=False):
         """
         Sync all data from Google Adwords API for this account.
