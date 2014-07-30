@@ -31,7 +31,7 @@ from django.db.models.fields import FieldDoesNotExist, DecimalField
 from celery.app import shared_task
 from django_toolkit.celery.decorators import ensure_self
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models.aggregates import Sum
+from django.db.models.aggregates import Sum, Min, Avg
 from django.db.models import Max
 
 class AdwordsDataInconsistency(Exception): pass
@@ -238,20 +238,20 @@ class Account(models.Model):
         canvas = group(*tasks) | self.finish_sync.s(this=self)
         canvas.apply_async()
     
-    @task(name='Account.start_sync', ignore_result=True, queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.start_sync', ignore_result=True, queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     @refresh
     def start_sync(self):
         self.status = self.STATUS_SYNC
         self.save(update_fields=['status'])
     
-    @task(name='Account.finish_sync', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.finish_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     @ensure_self
     @refresh
     def finish_sync(self, ignore_result=True):
         self.status = self.STATUS_ACTIVE
         self.save(update_fields=['updated', 'status'])
         
-    @task(name='Account.finish_account_sync', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.finish_account_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     @ensure_self
     @refresh
     def finish_account_sync(self, ignore_result=True):
@@ -261,7 +261,7 @@ class Account(models.Model):
             self.account_last_synced = account_last_synced['day__max']
         self.save(update_fields=['updated', 'account_last_synced'])
         
-    @task(name='Account.finish_campaign_sync', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.finish_campaign_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     @ensure_self
     @refresh
     def finish_campaign_sync(self, ignore_result=True):
@@ -271,7 +271,7 @@ class Account(models.Model):
             self.campaign_last_synced = campaign_last_synced['day__max']
         self.save(update_fields=['updated', 'campaign_last_synced'])
         
-    @task(name='Account.finish_ad_group_sync', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.finish_ad_group_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     @ensure_self
     @refresh
     def finish_ad_group_sync(self, ignore_result=True):
@@ -281,7 +281,7 @@ class Account(models.Model):
             self.ad_group_last_synced = ad_group_last_synced['day__max']
         self.save(update_fields=['updated', 'ad_group_last_synced'])
         
-    @task(name='Account.finish_ad_sync', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.finish_ad_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     @ensure_self
     @refresh
     def finish_ad_sync(self, ignore_result=True):
@@ -291,7 +291,7 @@ class Account(models.Model):
             self.ad_last_synced = ad_last_synced['day__max']
         self.save(update_fields=['updated', 'ad_last_synced'])
     
-    @task(name='Account.get_account_data', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.get_account_data', queue=settings.GOOGLEADWORDS_REPORT_RETRIEVAL_CELERY_QUEUE)
     def create_report_file(self, report_definition):
         """
         Create a ReportFile that contains the Google Adwords data as specified by report_definition.
@@ -305,7 +305,7 @@ class Account(models.Model):
         except GoogleAdsError, exc:
             raise InterceptedGoogleAdsError(exc, account_id=self.account_id)
     
-    @task(name='Account.sync_account', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync_account', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
     @ensure_self
     @refresh
     def sync_account(self, report_file):
@@ -324,7 +324,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
         
-    @task(name='Account.sync_campaign', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync_campaign', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
     @ensure_self
     @refresh
     def sync_campaign(self, report_file):
@@ -344,7 +344,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing campaign for account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
     
-    @task(name='Account.sync_ad_group', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync_ad_group', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
     @ensure_self
     @refresh
     def sync_ad_group(self, report_file):
@@ -365,7 +365,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing ad group for account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
     
-    @task(name='Account.sync_ad', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync_ad', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
     @ensure_self
     @refresh
     def sync_ad(self, report_file):
@@ -454,7 +454,12 @@ class Account(models.Model):
         @param start: the start date the the data is for.
         @param finish: the finish date you want the data for. 
         """
-        if not self.last_synced or (self.last_synced - timedelta(days=1)) < finish:
+        account_first_synced = DailyAccountMetrics.objects.filter(account=self).aggregate(Min('day'))
+        first_synced_date = None
+        if account_first_synced.has_key('day__min'):
+            first_synced_date = account_first_synced['day__min']
+            
+        if not self.last_synced or (self.last_synced - timedelta(days=1)) < finish or not first_synced_date or first_synced_date > start:
             raise AdwordsDataInconsistency('Google Adwords Account %s does not have correct amount of data to calculate the spend between "%s" and "%s"' % (
                 self, 
                 start, 
@@ -467,6 +472,13 @@ class Account(models.Model):
             return 0
         else:
             return cost
+
+    def is_synced(self, start, finish):
+        pass
+#         return DailyAdMetrics.objects.account(self).is_synced(start, finish) and \
+#             asdf.objects.account(self).contains_data(start, finish) and \
+#             asdf.objects.account(self).contains_data(start, finish)
+        
 
 class Alert(models.Model):
     TYPE_ACCOUNT_ON_TARGET = 'ACCOUNT_ON_TARGET' 
@@ -574,7 +586,6 @@ class Alert(models.Model):
         }
 
 class DailyAccountMetrics(models.Model):
-    account = models.ForeignKey('django_google_adwords.Account', related_name='account_metrics')
     DEVICE_UNKNOWN = 'Other'
     DEVICE_DESKTOP = 'Computers'
     DEVICE_HIGH_END_MOBILE = 'Mobile devices with full browsers'
@@ -586,6 +597,7 @@ class DailyAccountMetrics(models.Model):
         (DEVICE_TABLET, DEVICE_TABLET)
     )
     
+    account = models.ForeignKey('django_google_adwords.Account', related_name='account_metrics')
     avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
     avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
     avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
@@ -641,6 +653,69 @@ class DailyAccountMetrics(models.Model):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAccountMetrics.__name__, identifier)
                 release_googleadwords_lock(DailyAccountMetrics, identifier)
+        
+        def get_total_impressions_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Sum('impressions'))
+            
+        def get_daily_impressions_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(impressions=Sum('impressions'))
+
+        def get_total_clicks_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Sum('clicks'))
+            
+        def get_daily_clicks_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(clicks=Sum('clicks'))
+        
+        def get_total_cost_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Sum('cost'))
+            
+        def get_daily_cost_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(cost=Sum('cost'))
+        
+        def get_average_ctr_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('ctr'))
+            
+        def get_daily_average_ctr_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(ctr=Avg('ctr'))
+        
+        def get_average_cpc_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('avg_cpc'))
+            
+        def get_daily_average_cpc_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(cpc=Avg('avg_cpc'))
+        
+        def get_total_conversions_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Sum('conversions'))
+            
+        def get_daily_conversions_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(conversions=Sum('conversions'))
+
+        def get_average_click_conversion_rate_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('click_conversion_rate'))
+            
+        def get_daily_average_click_conversion_rate_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(click_conversion_rate=Avg('click_conversion_rate'))
+        
+        def get_average_cost_converted_click_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('cost_converted_click'))
+            
+        def get_daily_average_cost_converted_click_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(cost_converted_click=Avg('cost_converted_click'))
+
+        def get_average_search_lost_impression_share_budget(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('search_lost_is_budget'))
+            
+        def get_device_average_click_conversion_rate_for_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish).values('device').annotate(click_conversion_rate=Avg('click_conversion_rate'))
+            
+        def is_synced(self, start, finish):
+            pass
+#             account_first_synced = DailyAccountMetrics.objects.filter(account=self).aggregate(Min('day'))
+#             first_synced_date = None
+#             if account_first_synced.has_key('day__min'):
+#                 first_synced_date = account_first_synced['day__min']
+#             
+#             if not self.last_synced or (self.last_synced - timedelta(days=1)) < finish or not first_synced_date or first_synced_date > start:
 
 class Campaign(models.Model):
     STATE_ENABLED = 'enabled'
@@ -881,11 +956,9 @@ class AdGroup(models.Model):
     )
     
     campaign = models.ForeignKey('django_google_adwords.Campaign', related_name='ad_groups')
-    
     ad_group_id = models.BigIntegerField(unique=True)
     ad_group = models.CharField(max_length=255, help_text='Ad group name', null=True, blank=True)
     ad_group_state = models.CharField(max_length=20, choices=STATE_CHOICES, null=True, blank=True)
-    
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     
@@ -911,6 +984,19 @@ class AdGroup(models.Model):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", AdGroup.__name__, ad_group_id)
                 release_googleadwords_lock(AdGroup, ad_group_id)
+                
+        def top_by_clicks(self, start, finish):
+            return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
+                .annotate(clicks=Sum('metrics__clicks'), impressions=Sum('metrics__impressions'), \
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc'), avg_position=Avg('metrics__avg_position')) \
+                .order_by('-clicks')
+                
+        def top_by_conversion_rate(self, start, finish):
+            return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
+                .annotate(conversions=Sum('metrics__conversions'), conv_rate=Avg('metrics__conv_rate'), \
+                cost_converted_click=Avg('metrics__cost_converted_click'), \
+                clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
         
     @staticmethod
     def get_selector(start=None, finish=None):
@@ -1147,6 +1233,19 @@ class Ad(models.Model):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", Ad.__name__, ad_id)
                 release_googleadwords_lock(Ad, ad_id)
+                
+        def top_by_clicks(self, start, finish):
+            return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
+                .annotate(clicks=Sum('metrics__clicks'), impressions=Sum('metrics__impressions'), \
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc'), avg_position=Avg('metrics__avg_position')) \
+                .order_by('-clicks')
+                
+        def top_by_conversion_rate(self, start, finish):
+            return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
+                .annotate(conversions=Sum('metrics__conversions'), conv_rate=Avg('metrics__conv_rate'), \
+                cost_converted_click=Avg('metrics__cost_converted_click'), \
+                clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
     
     @staticmethod
     def get_selector(start=None, finish=None):

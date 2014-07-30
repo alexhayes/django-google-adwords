@@ -9,9 +9,9 @@ class GoogleAdwordsConf(AppConf):
     DEVELOPER_TOKEN = ''
     
     SYNC_ACCOUNT = True
-    SYNC_CAMPAIGN = False
-    SYNC_ADGROUP = False
-    SYNC_AD = False
+    SYNC_CAMPAIGN = True
+    SYNC_ADGROUP = True
+    SYNC_AD = True
 
     # Defaults - probably don't need to be changed
     CLIENT_VERSION = 'v201406'
@@ -24,7 +24,7 @@ class GoogleAdwordsConf(AppConf):
     NEW_ACCOUNT_ACCOUNT_SYNC_DAYS = 150
     NEW_ACCOUNT_CAMPAIGN_SYNC_DAYS = 61
     NEW_ACCOUNT_ADGROUP_SYNC_DAYS = 31
-    NEW_ACCOUNT_AD_SYNC_DAYS = 3
+    NEW_ACCOUNT_AD_SYNC_DAYS = 5
     
     EXISTING_ACCOUNT_SYNC_DAYS = 3
     EXISTING_CAMPAIGN_SYNC_DAYS = 3
@@ -32,7 +32,9 @@ class GoogleAdwordsConf(AppConf):
     EXISTING_AD_SYNC_DAYS = 3
     
     REPORT_FILE_ROOT = 'googleadwords-reportfile'
-    CELERY_QUEUE = 'celery'
+    REPORT_RETRIEVAL_CELERY_QUEUE = 'celery'
+    DATA_IMPORT_CELERY_QUEUE = 'celery'
+    START_FINISH_CELERY_QUEUE = 'celery'
     
     class Meta:
         prefix = 'GOOGLEADWORDS'
