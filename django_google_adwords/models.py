@@ -33,6 +33,7 @@ from django_toolkit.celery.decorators import ensure_self
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models.aggregates import Sum, Min, Avg
 from django.db.models import Max
+from django.template.defaultfilters import truncatechars
 
 class AdwordsDataInconsistency(Exception): pass
 
@@ -541,6 +542,9 @@ class Alert(models.Model):
     class QuerySet(_QuerySet):
         pass
     
+    def __unicode__(self):
+        return '%s' % (self.get_type_display())
+    
     @shared_task(name='Alert.sync_alerts')
     def sync_alerts():
         """
@@ -597,7 +601,7 @@ class DailyAccountMetrics(models.Model):
         (DEVICE_TABLET, DEVICE_TABLET)
     )
     
-    account = models.ForeignKey('django_google_adwords.Account', related_name='account_metrics')
+    account = models.ForeignKey('django_google_adwords.Account', related_name='metrics')
     avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
     avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
     avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
@@ -635,6 +639,9 @@ class DailyAccountMetrics(models.Model):
 
     objects = QuerySetManager()
     
+    def __unicode__(self):
+        return '%s' % (self.day)
+    
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, account):
@@ -654,59 +661,62 @@ class DailyAccountMetrics(models.Model):
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAccountMetrics.__name__, identifier)
                 release_googleadwords_lock(DailyAccountMetrics, identifier)
         
-        def get_total_impressions_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Sum('impressions'))
+        def within_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish)
+        
+        def total_impressions_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('impressions'))
             
-        def get_daily_impressions_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(impressions=Sum('impressions'))
+        def daily_impressions_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(impressions=Sum('impressions'))
 
-        def get_total_clicks_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Sum('clicks'))
+        def total_clicks_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('clicks'))
             
-        def get_daily_clicks_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(clicks=Sum('clicks'))
+        def daily_clicks_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(clicks=Sum('clicks'))
         
-        def get_total_cost_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Sum('cost'))
+        def total_cost_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('cost'))
             
-        def get_daily_cost_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(cost=Sum('cost'))
+        def daily_cost_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(cost=Sum('cost'))
         
-        def get_average_ctr_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('ctr'))
+        def average_ctr_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('ctr'))
             
-        def get_daily_average_ctr_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(ctr=Avg('ctr'))
+        def daily_average_ctr_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(ctr=Avg('ctr'))
         
-        def get_average_cpc_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('avg_cpc'))
+        def average_cpc_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('avg_cpc'))
             
-        def get_daily_average_cpc_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(cpc=Avg('avg_cpc'))
+        def daily_average_cpc_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(cpc=Avg('avg_cpc'))
         
-        def get_total_conversions_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Sum('conversions'))
+        def total_conversions_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('conversions'))
             
-        def get_daily_conversions_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(conversions=Sum('conversions'))
+        def daily_conversions_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(conversions=Sum('conversions'))
 
-        def get_average_click_conversion_rate_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('click_conversion_rate'))
+        def average_click_conversion_rate_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('click_conversion_rate'))
             
-        def get_daily_average_click_conversion_rate_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(click_conversion_rate=Avg('click_conversion_rate'))
+        def daily_average_click_conversion_rate_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(click_conversion_rate=Avg('click_conversion_rate'))
         
-        def get_average_cost_converted_click_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('cost_converted_click'))
+        def average_cost_converted_click_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('cost_converted_click'))
             
-        def get_daily_average_cost_converted_click_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('day').annotate(cost_converted_click=Avg('cost_converted_click'))
+        def daily_average_cost_converted_click_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(cost_converted_click=Avg('cost_converted_click'))
 
-        def get_average_search_lost_impression_share_budget(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).aggregate(Avg('search_lost_is_budget'))
+        def average_search_lost_impression_share_budget(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('search_lost_is_budget'))
             
-        def get_device_average_click_conversion_rate_for_period(self, start, finish):
-            return self.filter(day__gte=start, day__lte=finish).values('device').annotate(click_conversion_rate=Avg('click_conversion_rate'))
+        def device_average_click_conversion_rate_for_period(self, start, finish):
+            return self.within_period(start, finish).values('device').annotate(click_conversion_rate=Avg('click_conversion_rate'))
             
         def is_synced(self, start, finish):
             pass
@@ -736,6 +746,9 @@ class Campaign(models.Model):
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
 
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % (self.campaign)
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
@@ -922,6 +935,9 @@ class DailyCampaignMetrics(models.Model):
 
     objects = QuerySetManager()
     
+    def __unicode__(self):
+        return '%s' % (self.day)
+    
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, campaign):
@@ -963,6 +979,9 @@ class AdGroup(models.Model):
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % (self.ad_group)
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
@@ -1151,6 +1170,9 @@ class DailyAdGroupMetrics(models.Model):
     
     objects = QuerySetManager()
     
+    def __unicode__(self):
+        return '%s' % (self.day)
+    
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, ad_group):
@@ -1212,6 +1234,9 @@ class Ad(models.Model):
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % truncatechars(self.ad, 24)
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
@@ -1347,6 +1372,9 @@ class DailyAdMetrics(models.Model):
     
     objects = QuerySetManager()
     
+    def __unicode__(self):
+        return '%s' % self.day
+    
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, ad):
@@ -1380,6 +1408,9 @@ class ReportFile(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % self.file
     
     class QuerySet(_QuerySet):
         def request(self, report_definition, client_customer_id):
