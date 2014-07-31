@@ -1,3 +1,18 @@
+# Release 0.3.0 - Thu Jul 31 15:21:22 EST 2014
+
+- Bug fix
+- Added more queryset filters
+- Changed report downloaded to use csv.gz
+- Added queryset helpers to AdGroup
+- Changed sync celery queue.
+- 'account_metrics' getter now 'metrics' to follow convention.
+- Added 'with_period' queryset
+- Removed get_ from queryset filters
+- Refs #1769: Added get data queryset methods
+- Updated to use googleads 2.0.0
+- Made some changes, error handling, model changes
+- Refactored a bit of stuff and added more last synced dates for different aspects
+
 # Release 0.2.0 - Mon Jul 28 14:23:35 EST 2014
 
 - Support for Google Adwords v201402

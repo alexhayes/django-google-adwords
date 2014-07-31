@@ -2,6 +2,7 @@ import os
 import re
 import time
 import pytz
+import errno
 import logging
 from django.db import models
 from django.db.models.query import QuerySet as _QuerySet
@@ -21,7 +22,7 @@ from contextlib import contextmanager
 from django_toolkit.file import tempfile
 from django.core.files.base import File
 import xmltodict
-from django_google_adwords.errors import RateExceededError, ValidationError
+from django_google_adwords.errors import *
 from django.db.models.signals import post_delete
 from googleads.errors import GoogleAdsError
 from decimal import Decimal
@@ -31,15 +32,20 @@ from django.db.models.fields import FieldDoesNotExist, DecimalField
 from celery.app import shared_task
 from django_toolkit.celery.decorators import ensure_self
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models.aggregates import Sum, Min, Avg
+from django.db.models import Max
+from django.template.defaultfilters import truncatechars
+import gzip
+from django_toolkit.csv.unicode import UnicodeReader
+
+class AdwordsDataInconsistency(Exception): pass
 
 logger = logging.getLogger(__name__)
 
-first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-all_cap_re = re.compile('([a-z0-9])([A-Z])')
+remove_non_letters = re.compile('[^a-z|_]')
 
 def attribute_to_field_name(attribute):
-    s1 = first_cap_re.sub(r'\1_\2', attribute[1:])
-    return all_cap_re.sub(r'\1_\2', s1).lower()
+    return remove_non_letters.sub(r'', attribute.lower().replace(' ', '_')).replace('__', '_')
 
 class PopulatingGoogleAdwordsQuerySet(_QuerySet):
     IGNORE_FIELDS = ['created', 'updated']
@@ -52,7 +58,7 @@ class PopulatingGoogleAdwordsQuerySet(_QuerySet):
         
         def clean(value, field):
             # If the adwords api returns "--" regardless of the field we want to return None
-            if value == '--':
+            if value == ' --':
                 return None
             
             # If money divide by 1,000,000 to get dollars/cents
@@ -130,7 +136,10 @@ class Account(models.Model):
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     account = models.CharField(max_length=255, blank=True, null=True, help_text='Account descriptive name')
     currency = models.CharField(max_length=255, blank=True, null=True, help_text='Account currency code')
-    last_synced = models.DateTimeField(blank=True, null=True)
+    account_last_synced = models.DateField(blank=True, null=True)
+    campaign_last_synced = models.DateField(blank=True, null=True)
+    ad_group_last_synced = models.DateField(blank=True, null=True)
+    ad_last_synced = models.DateField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
 
@@ -156,14 +165,14 @@ class Account(models.Model):
             try:
                 logger.debug("Success acquire_googleadwords_lock: %s:%s", Account.__name__, account.account_id)
                 return self._populate(data, 
-                                      ignore_fields=['status', 'account_id', 'last_synced'], 
+                                      ignore_fields=['status', 'account_id', 'account_last_synced'], 
                                       account_id=account.account_id)
             
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", Account.__name__, account.account_id)
                 release_googleadwords_lock(Account, account.account_id)
     
-    @task(name='Account.sync', ignore_result=True, queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync', ignore_result=True, queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     def sync(self, start=None, force=False):
         """
         Sync all data from Google Adwords API for this account.
@@ -175,45 +184,116 @@ class Account(models.Model):
         - Ad Group Performance Report
         - Ad Performance Report
         """
+        
         self.start_sync()
-
-        if not force and not self.last_synced:
-            account_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_ACCOUNT_SYNC_DAYS)
-            campaign_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_CAMPAIGN_SYNC_DAYS)
-            ad_group_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_AD_GROUP_SYNC_DAYS)
-            ad_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_AD_SYNC_DAYS)
-        elif not force and self.last_synced:
-            account_start=campaign_start=ad_group_start=ad_start = (self.last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_ACCOUNT_SYNC_DAYS)).date()
-
         tasks = []
         
+        """
+        Account
+        """
         if settings.GOOGLEADWORDS_SYNC_ACCOUNT:
-            tasks.append(self.create_report_file.si(Account.get_selector(start=account_start)) | self.sync_account.s(this=self))
+            if not force and not self.account_last_synced:
+                account_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_ACCOUNT_SYNC_DAYS)
+            elif not force and self.account_last_synced:
+                account_start = self.account_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_ACCOUNT_SYNC_DAYS)
+            elif force and start:
+                account_start = start
+            tasks.append(self.create_report_file.si(Account.get_selector(start=account_start)) | self.sync_account.s(this=self) | self.finish_account_sync.s(this=self))
+            
+        """
+        Campaign
+        """
         if settings.GOOGLEADWORDS_SYNC_CAMPAIGN:
-            tasks.append(self.create_report_file.si(Campaign.get_selector(start=campaign_start)) | self.sync_campaign.s(this=self))
+            if not force and not self.campaign_last_synced:
+                campaign_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_CAMPAIGN_SYNC_DAYS)
+            elif not force and self.campaign_last_synced:
+                campaign_start = self.campaign_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_CAMPAIGN_SYNC_DAYS)
+            elif force and start:
+                campaign_start = start
+            tasks.append(self.create_report_file.si(Campaign.get_selector(start=campaign_start)) | self.sync_campaign.s(this=self) | self.finish_campaign_sync.s(this=self))
+            
+        """
+        Ad Group
+        """
         if settings.GOOGLEADWORDS_SYNC_ADGROUP:
-            tasks.append(self.create_report_file.si(AdGroup.get_selector(start=ad_group_start)) | self.sync_ad_group.s(this=self))
+            if not force and not self.ad_group_last_synced:
+                ad_group_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_ADGROUP_SYNC_DAYS)
+            elif not force and self.ad_group_last_synced:
+                ad_group_start = self.ad_group_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_ADGROUP_SYNC_DAYS)
+                print ad_group_start
+            elif force and start:
+                ad_group_start = start
+            tasks.append(self.create_report_file.si(AdGroup.get_selector(start=ad_group_start)) | self.sync_ad_group.s(this=self) | self.finish_ad_group_sync.s(this=self))
+            
+        """
+        Ad
+        """
         if settings.GOOGLEADWORDS_SYNC_AD:
-            tasks.append(self.create_report_file.si(Ad.get_selector(start=ad_start)) | self.sync_ad.s(this=self))
+            if not force and not self.ad_last_synced:
+                ad_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_AD_SYNC_DAYS)
+            elif not force and self.ad_last_synced:
+                ad_start = self.ad_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_AD_SYNC_DAYS)
+            elif force and start:
+                ad_start = start
+            tasks.append(self.create_report_file.si(Ad.get_selector(start=ad_start)) | self.sync_ad.s(this=self) | self.finish_ad_sync.s(this=self))
 
         canvas = group(*tasks) | self.finish_sync.s(this=self)
         canvas.apply_async()
     
-    @task(name='Account.start_sync', ignore_result=True, queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.start_sync', ignore_result=True, queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     @refresh
     def start_sync(self):
         self.status = self.STATUS_SYNC
         self.save(update_fields=['status'])
     
-    @task(name='Account.finish_sync', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.finish_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
     @ensure_self
     @refresh
     def finish_sync(self, ignore_result=True):
         self.status = self.STATUS_ACTIVE
-        self.last_synced = timezone.now()
-        self.save(update_fields=['updated', 'status', 'last_synced'])
+        self.save(update_fields=['updated', 'status'])
         
-    @task(name='Account.get_account_data', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.finish_account_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
+    @ensure_self
+    @refresh
+    def finish_account_sync(self, ignore_result=True):
+        self.account_last_synced = None
+        account_last_synced = DailyAccountMetrics.objects.filter(account=self).aggregate(Max('day'))
+        if account_last_synced.has_key('day__max'):
+            self.account_last_synced = account_last_synced['day__max']
+        self.save(update_fields=['updated', 'account_last_synced'])
+        
+    @task(name='Account.finish_campaign_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
+    @ensure_self
+    @refresh
+    def finish_campaign_sync(self, ignore_result=True):
+        self.campaign_last_synced = None
+        campaign_last_synced = DailyCampaignMetrics.objects.filter(campaign__account=self).aggregate(Max('day'))
+        if campaign_last_synced.has_key('day__max'):
+            self.campaign_last_synced = campaign_last_synced['day__max']
+        self.save(update_fields=['updated', 'campaign_last_synced'])
+        
+    @task(name='Account.finish_ad_group_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
+    @ensure_self
+    @refresh
+    def finish_ad_group_sync(self, ignore_result=True):
+        self.ad_group_last_synced = None
+        ad_group_last_synced = DailyAdGroupMetrics.objects.filter(ad_group__campaign__account=self).aggregate(Max('day'))
+        if ad_group_last_synced.has_key('day__max'):
+            self.ad_group_last_synced = ad_group_last_synced['day__max']
+        self.save(update_fields=['updated', 'ad_group_last_synced'])
+        
+    @task(name='Account.finish_ad_sync', queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
+    @ensure_self
+    @refresh
+    def finish_ad_sync(self, ignore_result=True):
+        self.ad_last_synced = None
+        ad_last_synced = DailyAdMetrics.objects.filter(ad__ad_group__campaign__account=self).aggregate(Max('day'))
+        if ad_last_synced.has_key('day__max'):
+            self.ad_last_synced = ad_last_synced['day__max']
+        self.save(update_fields=['updated', 'ad_last_synced'])
+    
+    @task(name='Account.get_account_data', queue=settings.GOOGLEADWORDS_REPORT_RETRIEVAL_CELERY_QUEUE)
     def create_report_file(self, report_definition):
         """
         Create a ReportFile that contains the Google Adwords data as specified by report_definition.
@@ -224,8 +304,10 @@ class Account(models.Model):
         except RateExceededError, exc:
             logger.info("Caught RateExceededError for account '%s' - retrying in '%s' seconds.", self.pk, exc.retry_after_seconds)
             raise self.get_account_data.retry(exc, countdown=exc.retry_after_seconds)
+        except GoogleAdsError, exc:
+            raise InterceptedGoogleAdsError(exc, account_id=self.account_id)
     
-    @task(name='Account.sync_account', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync_account', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
     @ensure_self
     @refresh
     def sync_account(self, report_file):
@@ -234,9 +316,8 @@ class Account(models.Model):
         
         :param report_file: ReportFile
         """
-        dehydrated_report = report_file.dehydrate()
         try:
-            for row in dehydrated_report['report']['table']['row']:
+            for row in report_file.dehydrate():
                 account = Account.objects.populate(row, self)
                 DailyAccountMetrics.objects.populate(row, account=account)
                 
@@ -244,7 +325,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
         
-    @task(name='Account.sync_campaign', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync_campaign', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
     @ensure_self
     @refresh
     def sync_campaign(self, report_file):
@@ -253,9 +334,8 @@ class Account(models.Model):
         
         :param report_file: ReportFile
         """
-        dehydrated_report = report_file.dehydrate()
         try:
-            for row in dehydrated_report['report']['table']['row']:
+            for row in report_file.dehydrate():
                 account = Account.objects.populate(row, self)
                 campaign = Campaign.objects.populate(row, account=account)
                 DailyCampaignMetrics.objects.populate(row, campaign=campaign)
@@ -264,7 +344,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing campaign for account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
     
-    @task(name='Account.sync_ad_group', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync_ad_group', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
     @ensure_self
     @refresh
     def sync_ad_group(self, report_file):
@@ -273,9 +353,8 @@ class Account(models.Model):
         
         :param report_file: ReportFile
         """
-        dehydrated_report = report_file.dehydrate()
         try:
-            for row in dehydrated_report['report']['table']['row']:
+            for row in report_file.dehydrate():
                 account = Account.objects.populate(row, self)
                 campaign = Campaign.objects.populate(row, account=account)
                 ad_group = AdGroup.objects.populate(row, campaign=campaign)
@@ -285,7 +364,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing ad group for account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
     
-    @task(name='Account.sync_ad', queue=settings.GOOGLEADWORDS_CELERY_QUEUE)
+    @task(name='Account.sync_ad', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
     @ensure_self
     @refresh
     def sync_ad(self, report_file):
@@ -294,9 +373,8 @@ class Account(models.Model):
         
         :param report_file: ReportFile
         """
-        dehydrated_report = report_file.dehydrate()
         try:
-            for row in dehydrated_report['report']['table']['row']:
+            for row in report_file.dehydrate():
                 account = Account.objects.populate(row, self)
                 campaign = Campaign.objects.populate(row, account=account)
                 ad_group = AdGroup.objects.populate(row, campaign=campaign)
@@ -321,7 +399,7 @@ class Account(models.Model):
             'reportName': 'Account Performance Report',
             'dateRangeType': 'CUSTOM_DATE',
             'reportType': 'ACCOUNT_PERFORMANCE_REPORT',
-            'downloadFormat': 'XML',
+            'downloadFormat': 'GZIPPED_CSV',
             'selector': {
                 'fields': [
                            'AccountCurrencyCode',
@@ -335,6 +413,7 @@ class Account(models.Model):
                            'ContentRankLostImpressionShare',
                            'ConversionRate',
                            'ConversionRateManyPerClick',
+                           'ConversionValue',
                            'Conversions',
                            'ConversionsManyPerClick',
                            'Cost',
@@ -368,6 +447,37 @@ class Account(models.Model):
         
         return report_definition
     
+    def spend(self, start, finish):
+        """
+        @param start: the start date the the data is for.
+        @param finish: the finish date you want the data for. 
+        """
+        account_first_synced = DailyAccountMetrics.objects.filter(account=self).aggregate(Min('day'))
+        first_synced_date = None
+        if account_first_synced.has_key('day__min'):
+            first_synced_date = account_first_synced['day__min']
+        
+        if not self.account_last_synced or self.account_last_synced < finish or not first_synced_date or first_synced_date > start:
+            raise AdwordsDataInconsistency('Google Adwords Account %s does not have correct amount of data to calculate the spend between "%s" and "%s"' % (
+                self, 
+                start, 
+                finish, 
+            ))
+        
+        cost = self.metrics.filter(day__gte=start, day__lte=finish).aggregate(Sum('cost'))['cost__sum']
+        
+        if cost == None:
+            return 0
+        else:
+            return cost
+
+    def is_synced(self, start, finish):
+        pass
+#         return DailyAdMetrics.objects.account(self).is_synced(start, finish) and \
+#             asdf.objects.account(self).contains_data(start, finish) and \
+#             asdf.objects.account(self).contains_data(start, finish)
+        
+
 class Alert(models.Model):
     TYPE_ACCOUNT_ON_TARGET = 'ACCOUNT_ON_TARGET' 
     TYPE_DECLINED_PAYMENT = 'DECLINED_PAYMENT' 
@@ -429,6 +539,9 @@ class Alert(models.Model):
     class QuerySet(_QuerySet):
         pass
     
+    def __unicode__(self):
+        return '%s' % (self.get_type_display())
+    
     @shared_task(name='Alert.sync_alerts')
     def sync_alerts():
         """
@@ -473,7 +586,7 @@ class Alert(models.Model):
             }
         }
 
-class CommonMetrics(models.Model):
+class DailyAccountMetrics(models.Model):
     DEVICE_UNKNOWN = 'Other'
     DEVICE_DESKTOP = 'Computers'
     DEVICE_HIGH_END_MOBILE = 'Mobile devices with full browsers'
@@ -485,7 +598,7 @@ class CommonMetrics(models.Model):
         (DEVICE_TABLET, DEVICE_TABLET)
     )
     
-    # Fields from api
+    account = models.ForeignKey('django_google_adwords.Account', related_name='metrics')
     avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
     avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
     avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
@@ -493,21 +606,17 @@ class CommonMetrics(models.Model):
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
     conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Conv. rate')
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
+    total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
     cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
     cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
     cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
     ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
-    device = models.CharField(max_length=50, choices=DEVICE_CHOICES, help_text='Device')
+    device = models.CharField(max_length=255, choices=DEVICE_CHOICES, help_text='Device')
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
-    
     created = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        abstract = True
-        
-class AccountAdGroupCampaignCommonMetrics(CommonMetrics):
+    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
     content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
     cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / est. total conv.', null=True, blank=True)
@@ -520,21 +629,6 @@ class AccountAdGroupCampaignCommonMetrics(CommonMetrics):
     search_exact_match_is = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Exact match IS')
     search_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Impr. share')
     search_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Lost IS (rank)')
-    
-    class Meta:
-        abstract = True
-
-class AdGroupAdCommonMetrics(models.Model):
-    value_converted_click = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / converted click')
-    value_conv = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / conv.')
-    view_through_conv = models.BigIntegerField(help_text='View-through conv.', null=True, blank=True)
-
-    class Meta:
-        abstract = True
-        
-class DailyAccountMetrics(AccountAdGroupCampaignCommonMetrics):
-    account = models.ForeignKey('django_google_adwords.Account', related_name='account_metrics')
-    
     content_lost_is_budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (budget)')
     invalid_click_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Invalid click rate')
     invalid_clicks = models.BigIntegerField(help_text='Invalid clicks', null=True, blank=True)
@@ -542,11 +636,14 @@ class DailyAccountMetrics(AccountAdGroupCampaignCommonMetrics):
 
     objects = QuerySetManager()
     
+    def __unicode__(self):
+        return '%s' % (self.day)
+    
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, account):
-            device = data.get('@device')
-            day = data.get('@day')
+            device = data.get('Device')
+            day = data.get('Day')
             identifier = '%s-%s' % (device, day)
             
             while not acquire_googleadwords_lock(DailyAccountMetrics, identifier):
@@ -560,15 +657,90 @@ class DailyAccountMetrics(AccountAdGroupCampaignCommonMetrics):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAccountMetrics.__name__, identifier)
                 release_googleadwords_lock(DailyAccountMetrics, identifier)
+        
+        def desktop(self):
+            return self.filter(device=DailyAccountMetrics.DEVICE_DESKTOP)
+            
+        def mobile(self):
+            return self.filter(device=DailyAccountMetrics.DEVICE_HIGH_END_MOBILE)
+            
+        def tablet(self):
+            return self.filter(device=DailyAccountMetrics.DEVICE_TABLET)
+        
+        def within_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish)
+        
+        def total_impressions_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('impressions'))
+            
+        def daily_impressions_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(impressions=Sum('impressions'))
+
+        def total_clicks_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('clicks'))
+            
+        def daily_clicks_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(clicks=Sum('clicks'))
+        
+        def total_cost_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('cost'))
+            
+        def daily_cost_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(cost=Sum('cost'))
+        
+        def average_ctr_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('ctr'))
+            
+        def daily_average_ctr_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(ctr=Avg('ctr'))
+        
+        def average_cpc_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('avg_cpc'))
+            
+        def daily_average_cpc_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(cpc=Avg('avg_cpc'))
+        
+        def total_conversions_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('conversions'))
+            
+        def daily_conversions_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(conversions=Sum('conversions'))
+
+        def average_click_conversion_rate_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('click_conversion_rate'))
+            
+        def daily_average_click_conversion_rate_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(click_conversion_rate=Avg('click_conversion_rate'))
+        
+        def average_cost_conv_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('cost_conv'))
+            
+        def daily_average_cost_conv_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(cost_conv=Avg('cost_conv'))
+
+        def average_search_lost_impression_share_budget(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('search_lost_is_budget'))
+            
+        def device_average_click_conversion_rate_for_period(self, start, finish):
+            return self.within_period(start, finish).values('device').annotate(click_conversion_rate=Avg('click_conversion_rate'))
+            
+        def is_synced(self, start, finish):
+            pass
+#             account_first_synced = DailyAccountMetrics.objects.filter(account=self).aggregate(Min('day'))
+#             first_synced_date = None
+#             if account_first_synced.has_key('day__min'):
+#                 first_synced_date = account_first_synced['day__min']
+#             
+#             if not self.last_synced or (self.last_synced - timedelta(days=1)) < finish or not first_synced_date or first_synced_date > start:
 
 class Campaign(models.Model):
-    STATE_ACTIVE = 'active'
+    STATE_ENABLED = 'enabled'
     STATE_PAUSED = 'paused'
-    STATE_DELETED = 'deleted'
+    STATE_REMOVED = 'removed'
     STATE_CHOICES = (
-        (STATE_ACTIVE, 'Active'),
+        (STATE_ENABLED, 'Enabled'),
         (STATE_PAUSED, 'Paused'),
-        (STATE_DELETED, 'Deleted')
+        (STATE_REMOVED, 'Removed')
     )
     
     account = models.ForeignKey('django_google_adwords.Account', related_name='campaigns')
@@ -576,11 +748,13 @@ class Campaign(models.Model):
     campaign = models.CharField(max_length=255, help_text='Campaign name')
     campaign_state = models.CharField(max_length=20, choices=STATE_CHOICES)
     budget = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Budget', null=True, blank=True)
-    
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
 
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % (self.campaign)
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
@@ -588,7 +762,7 @@ class Campaign(models.Model):
             """
             A locking get_or_create - note only the campaign_id is used in the 'get'.
             """
-            campaign_id = int(data.get('@campaignID'))
+            campaign_id = int(data.get('Campaign ID'))
 
             # Get a lock based upon the campaign id
             while not acquire_googleadwords_lock(Campaign, campaign_id):
@@ -617,7 +791,7 @@ class Campaign(models.Model):
             'reportName': 'Campaign Performance Report',
             'dateRangeType': 'CUSTOM_DATE',
             'reportType': 'CAMPAIGN_PERFORMANCE_REPORT',
-            'downloadFormat': 'XML',
+            'downloadFormat': 'GZIPPED_CSV',
             'selector': {
                 'fields': [
                             'AccountCurrencyCode',
@@ -640,6 +814,7 @@ class Campaign(models.Model):
                             'ContentRankLostImpressionShare',
                             'ConversionRate',
                             'ConversionRateManyPerClick',
+                            'ConversionValue',
                             'Conversions',
                             'ConversionsManyPerClick',
                             'Cost',
@@ -648,7 +823,6 @@ class Campaign(models.Model):
                             'CostPerEstimatedTotalConversion',
                             'CostPerEstimatedTotalConversion',
                             'Ctr',
-                            'Device',
                             'EstimatedCrossDeviceConversions',
                             'EstimatedCrossDeviceConversions',
                             'EstimatedTotalConversionRate',
@@ -683,7 +857,7 @@ class Campaign(models.Model):
         
         return report_definition
 
-class CampaignAdGroupCommonMetrics(models.Model):
+class DailyCampaignMetrics(models.Model):
     BID_STRATEGY_TYPE_BUDGET_OPTIMIZER = 'auto'
     BID_STRATEGY_TYPE_CONVERSION_OPTIMIZER = 'max/target cpa'
     BID_STRATEGY_TYPE_MANUAL_CPC = 'cpc'
@@ -711,26 +885,57 @@ class CampaignAdGroupCommonMetrics(models.Model):
         (BID_STRATEGY_TYPE_UNKNOWN, 'Unknown')
     )
     
+    campaign = models.ForeignKey('django_google_adwords.Campaign', related_name='metrics')
+    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
+    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
+    avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
+    clicks = models.IntegerField(help_text='Clicks', null=True, blank=True)
+    click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
+    conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Conv. rate')
+    converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
+    total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
+    conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
+    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
+    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
+    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
+    ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
+    impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
+    day = models.DateField(help_text='When this metric occurred')
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
+    content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
+    cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / est. total conv.', null=True, blank=True)
+    est_cross_device_conv = models.BigIntegerField(help_text='Est. cross-device conv.', null=True, blank=True)
+    est_total_conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. rate')
+    est_total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value')
+    est_total_conv_value_click = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value / click')
+    est_total_conv_value_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value / cost')
+    est_total_conv = models.BigIntegerField(help_text='Est. total conv.', null=True, blank=True)
+    search_exact_match_is = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Exact match IS')
+    search_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Impr. share')
+    search_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Lost IS (rank)')
     bid_strategy_id = models.BigIntegerField(help_text='Bid Strategy ID', null=True, blank=True)
     bid_strategy_name = models.CharField(max_length=255, null=True, blank=True)
     bid_strategy_type = models.CharField(max_length=40, choices=BID_STRATEGY_TYPE_CHOICES, help_text='Bid Strategy Type', null=True, blank=True)
-
-class DailyCampaignMetrics(CampaignAdGroupCommonMetrics, AccountAdGroupCampaignCommonMetrics, AdGroupAdCommonMetrics):
-    campaign = models.ForeignKey('django_google_adwords.Campaign', related_name='metrics')
-    
     content_lost_is_budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (budget)')
     invalid_click_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Invalid click rate')
     invalid_clicks = models.BigIntegerField(help_text='Invalid clicks', null=True, blank=True)
     search_lost_is_budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Lost IS (budget)')
+    value_converted_click = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / converted click')
+    value_conv = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / conv.')
+    view_through_conv = models.BigIntegerField(help_text='View-through conv.', null=True, blank=True)
 
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % (self.day)
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, campaign):
-            device = data.get('@device')
-            day = data.get('@day')
-            identifier = '%s-%s' % (device, day)
+            day = data.get('Day')
+            identifier = '%s' % day
             
             while not acquire_googleadwords_lock(DailyCampaignMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyCampaignMetrics.__name__, identifier)
@@ -740,7 +945,6 @@ class DailyCampaignMetrics(CampaignAdGroupCommonMetrics, AccountAdGroupCampaignC
                 logger.debug("Success acquire_googleadwords_lock: %s:%s", DailyCampaignMetrics.__name__, identifier)
                 return self._populate(data,
                                   ignore_fields=['campaign'],
-                                  device=device,
                                   day=day,
                                   campaign=campaign)
             
@@ -751,23 +955,24 @@ class DailyCampaignMetrics(CampaignAdGroupCommonMetrics, AccountAdGroupCampaignC
 class AdGroup(models.Model):
     STATE_ENABLED = 'enabled'
     STATE_PAUSED = 'paused'
-    STATE_DELETED = 'deleted'
+    STATE_REMOVED = 'removed'
     STATE_CHOICES = (
         (STATE_ENABLED, 'Enabled'),
         (STATE_PAUSED, 'Paused'),
-        (STATE_DELETED, 'Deleted')
+        (STATE_REMOVED, 'Removed')
     )
     
     campaign = models.ForeignKey('django_google_adwords.Campaign', related_name='ad_groups')
-    
     ad_group_id = models.BigIntegerField(unique=True)
     ad_group = models.CharField(max_length=255, help_text='Ad group name', null=True, blank=True)
     ad_group_state = models.CharField(max_length=20, choices=STATE_CHOICES, null=True, blank=True)
-    
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % (self.ad_group)
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
@@ -775,7 +980,7 @@ class AdGroup(models.Model):
             """
             A locking get_or_create - note only the ad_group_id is used in the 'get'.
             """
-            ad_group_id = int(data.get('@adGroupID'))
+            ad_group_id = int(data.get('Ad group ID'))
 
             # Get a lock based upon the ad_group_id
             while not acquire_googleadwords_lock(AdGroup, ad_group_id):
@@ -789,6 +994,34 @@ class AdGroup(models.Model):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", AdGroup.__name__, ad_group_id)
                 release_googleadwords_lock(AdGroup, ad_group_id)
+                
+        def top_by_clicks(self, start, finish):
+            return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
+                .annotate(clicks=Sum('metrics__clicks'), \
+                          impressions=Sum('metrics__impressions'), \
+                          ctr=Avg('metrics__ctr'), \
+                          avg_cpc=Avg('metrics__avg_cpc'), \
+                          avg_position=Avg('metrics__avg_position')) \
+                .order_by('-clicks')
+                
+        def top_by_conversion_rate(self, start, finish):
+            return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
+                .annotate(conversions=Sum('metrics__conversions'), conv_rate=Avg('metrics__conv_rate'), \
+                cost_conv=Avg('metrics__cost_conv'), \
+                clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
+        
+        def account(self, account):
+            return self.filter(campaign__account=account)
+    
+        def enabled(self):
+            return self.filter(ad_group_state=AdGroup.STATE_ENABLED)
+    
+        def paused(self):
+            return self.filter(ad_group_state=AdGroup.STATE_PAUSED)
+    
+        def removed(self):
+            return self.filter(ad_group_state=AdGroup.STATE_REMOVED)
         
     @staticmethod
     def get_selector(start=None, finish=None):
@@ -804,7 +1037,7 @@ class AdGroup(models.Model):
             'reportName': 'Ad Group Performance Report',
             'dateRangeType': 'CUSTOM_DATE',
             'reportType': 'ADGROUP_PERFORMANCE_REPORT',
-            'downloadFormat': 'XML',
+            'downloadFormat': 'GZIPPED_CSV',
             'selector': {
                 'fields': [
                             'AccountCurrencyCode',
@@ -841,13 +1074,13 @@ class AdGroup(models.Model):
                             'Clicks',
                             'ConversionRate',
                             'ConversionRateManyPerClick',
+                            'ConversionValue',
                             'Conversions',
                             'ConversionsManyPerClick',
                             'Cost',
                             'CostPerConversion',
                             'CostPerConversionManyPerClick',
                             'Ctr',
-                            'Device',
                             'Impressions',
                             'Date',
                            ],
@@ -861,21 +1094,83 @@ class AdGroup(models.Model):
         
         return report_definition
 
-class DailyAdGroupMetrics(CampaignAdGroupCommonMetrics, AccountAdGroupCampaignCommonMetrics, AdGroupAdCommonMetrics):
+class DailyAdGroupMetrics(models.Model):
+    BID_STRATEGY_TYPE_BUDGET_OPTIMIZER = 'auto'
+    BID_STRATEGY_TYPE_CONVERSION_OPTIMIZER = 'max/target cpa'
+    BID_STRATEGY_TYPE_MANUAL_CPC = 'cpc'
+    BID_STRATEGY_TYPE_MANUAL_CPM = 'cpm'
+    BID_STRATEGY_TYPE_PAGE_ONE_PROMOTED = 'Target search page location'
+    BID_STRATEGY_TYPE_PERCENT_CPA = 'max cpa percent'
+    BID_STRATEGY_TYPE_TARGET_SPEND = 'Maximize clicks'
+    BID_STRATEGY_TYPE_ENHANCED_CPC = 'Enhanced CPC'
+    BID_STRATEGY_TYPE_TARGET_CPA = 'Target CPA'
+    BID_STRATEGY_TYPE_TARGET_ROAS = 'Target ROAS'
+    BID_STRATEGY_TYPE_NONE = 'None'
+    BID_STRATEGY_TYPE_UNKNOWN = 'unknown'
+    BID_STRATEGY_TYPE_CHOICES = (
+        (BID_STRATEGY_TYPE_BUDGET_OPTIMIZER, 'Budget Optimizer'),
+        (BID_STRATEGY_TYPE_CONVERSION_OPTIMIZER, 'Conversion Optimizer'),
+        (BID_STRATEGY_TYPE_MANUAL_CPC, 'Manual CPC'),
+        (BID_STRATEGY_TYPE_MANUAL_CPM, 'Manual CPM'),
+        (BID_STRATEGY_TYPE_PAGE_ONE_PROMOTED, 'Page One Promoted'),
+        (BID_STRATEGY_TYPE_PERCENT_CPA, 'Percent CPA'),
+        (BID_STRATEGY_TYPE_TARGET_SPEND, 'Target Spend'),
+        (BID_STRATEGY_TYPE_ENHANCED_CPC, 'Enhanced CPC'),
+        (BID_STRATEGY_TYPE_TARGET_CPA, 'Target CPA'),
+        (BID_STRATEGY_TYPE_TARGET_ROAS, 'Target ROAS'),
+        (BID_STRATEGY_TYPE_NONE, 'None'),
+        (BID_STRATEGY_TYPE_UNKNOWN, 'Unknown')
+    )
     
     ad_group = models.ForeignKey('django_google_adwords.AdGroup', related_name='metrics')
-    
+    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
+    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
+    avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
+    clicks = models.IntegerField(help_text='Clicks', null=True, blank=True)
+    click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
+    conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Conv. rate')
+    converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
+    total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
+    conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
+    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
+    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
+    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
+    ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
+    impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
+    day = models.DateField(help_text='When this metric occurred')
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
+    content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
+    cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / est. total conv.', null=True, blank=True)
+    est_cross_device_conv = models.BigIntegerField(help_text='Est. cross-device conv.', null=True, blank=True)
+    est_total_conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. rate')
+    est_total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value')
+    est_total_conv_value_click = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value / click')
+    est_total_conv_value_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value / cost')
+    est_total_conv = models.BigIntegerField(help_text='Est. total conv.', null=True, blank=True)
+    search_exact_match_is = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Exact match IS')
+    search_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Impr. share')
+    search_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Search Lost IS (rank)')
+    bid_strategy_id = models.BigIntegerField(help_text='Bid Strategy ID', null=True, blank=True)
+    bid_strategy_name = models.CharField(max_length=255, null=True, blank=True)
+    bid_strategy_type = models.CharField(max_length=40, choices=BID_STRATEGY_TYPE_CHOICES, help_text='Bid Strategy Type', null=True, blank=True)
     max_cpa_converted_clicks = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Max. CPA (converted clicks)', null=True, blank=True)
     value_est_total_conv = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / est. total conv.')
+    value_converted_click = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / converted click')
+    value_conv = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / conv.')
+    view_through_conv = models.BigIntegerField(help_text='View-through conv.', null=True, blank=True)
     
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % (self.day)
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, ad_group):
-            device = data.get('@device')
-            day = data.get('@day')
-            identifier = '%s-%s' % (device, day)
+            day = data.get('Day')
+            identifier = '%s' % day
             
             while not acquire_googleadwords_lock(DailyAdGroupMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyAdGroupMetrics.__name__, identifier)
@@ -883,7 +1178,7 @@ class DailyAdGroupMetrics(CampaignAdGroupCommonMetrics, AccountAdGroupCampaignCo
                
             try:
                 logger.debug("Success acquire_googleadwords_lock: %s:%s", DailyAdGroupMetrics.__name__, identifier)
-                return self._populate(data, ignore_fields=['ad_group'], device=device, day=day, ad_group=ad_group)
+                return self._populate(data, ignore_fields=['ad_group'], day=day, ad_group=ad_group)
             
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAdGroupMetrics.__name__, identifier)
@@ -892,11 +1187,11 @@ class DailyAdGroupMetrics(CampaignAdGroupCommonMetrics, AccountAdGroupCampaignCo
 class Ad(models.Model):
     STATE_ENABLED = 'enabled'
     STATE_PAUSED = 'paused'
-    STATE_DELETED = 'deleted'
+    STATE_REMOVED = 'removed'
     STATE_CHOICES = (
         (STATE_ENABLED, 'Enabled'),
         (STATE_PAUSED, 'Paused'),
-        (STATE_DELETED, 'Deleted')
+        (STATE_REMOVED, 'Removed')
     )
     
     TYPE_DEPRECATED_AD = 'Other'
@@ -919,7 +1214,6 @@ class Ad(models.Model):
     )
     
     ad_group = models.ForeignKey('django_google_adwords.AdGroup', related_name='ads')
-    
     ad_id = models.BigIntegerField(help_text='Googles Ad ID')
     ad_state = models.CharField(max_length=20, choices=STATE_CHOICES, null=True, blank=True)
     ad_type = models.CharField(max_length=20, choices=TYPE_CHOICES, null=True, blank=True)
@@ -928,11 +1222,13 @@ class Ad(models.Model):
     ad = models.TextField(help_text='Ad/Headline', null=True, blank=True)
     description_line1 = models.TextField(help_text='Description line 1', null=True, blank=True)
     description_line2 = models.TextField(help_text='Description line 2', null=True, blank=True)
-    
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % truncatechars(self.ad, 24)
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
@@ -940,7 +1236,7 @@ class Ad(models.Model):
             """
             A locking get_or_create - note only the ad_id is used in the 'get'.
             """
-            ad_id = int(data.get('@adID'))
+            ad_id = int(data.get('Ad ID'))
 
             # Get a lock based upon the campaign id
             while not acquire_googleadwords_lock(Ad, ad_id):
@@ -954,6 +1250,34 @@ class Ad(models.Model):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", Ad.__name__, ad_id)
                 release_googleadwords_lock(Ad, ad_id)
+                
+        def top_by_clicks(self, start, finish):
+            return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
+                .annotate(clicks=Sum('metrics__clicks'), impressions=Sum('metrics__impressions'), \
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc'), avg_position=Avg('metrics__avg_position')) \
+                .order_by('-clicks')
+                
+        def top_by_conversion_rate(self, start, finish):
+            return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
+                .annotate(conversions=Sum('metrics__conversions'), conv_rate=Avg('metrics__conv_rate'), \
+                cost_conv=Avg('metrics__cost_conv'), \
+                clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
+                
+        def account(self, account):
+            return self.filter(ad_group__campaign__account=account)
+    
+        def enabled(self):
+            return self.filter(ad_state=Ad.STATE_ENABLED)
+    
+        def paused(self):
+            return self.filter(ad_state=Ad.STATE_PAUSED)
+    
+        def removed(self):
+            return self.filter(ad_state=Ad.STATE_REMOVED)
+        
+        def text(self):
+            return self.filter(ad_type=Ad.TYPE_TEXT_AD)
     
     @staticmethod
     def get_selector(start=None, finish=None):
@@ -969,7 +1293,7 @@ class Ad(models.Model):
             'reportName': 'Ad Performance Report',
             'dateRangeType': 'CUSTOM_DATE',
             'reportType': 'AD_PERFORMANCE_REPORT',
-            'downloadFormat': 'XML',
+            'downloadFormat': 'GZIPPED_CSV',
             'selector': {
                 'fields': [
                             'AccountCurrencyCode',
@@ -987,6 +1311,7 @@ class Ad(models.Model):
                             'Clicks',
                             'ConversionRate',
                             'ConversionRateManyPerClick',
+                            'ConversionValue',
                             'Conversions',
                             'ConversionsManyPerClick',
                             'Cost',
@@ -996,7 +1321,6 @@ class Ad(models.Model):
                             'Ctr',
                             'Description1',
                             'Description2',
-                            'Device',
                             'DisplayUrl',
                             'Headline',
                             'Id',
@@ -1017,17 +1341,39 @@ class Ad(models.Model):
     
         return report_definition
     
-class DailyAdMetrics(CommonMetrics, AdGroupAdCommonMetrics):
+class DailyAdMetrics(models.Model):
     ad = models.ForeignKey('django_google_adwords.Ad', related_name='metrics')
-
+    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
+    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
+    avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
+    clicks = models.IntegerField(help_text='Clicks', null=True, blank=True)
+    click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
+    conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Conv. rate')
+    converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
+    total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
+    conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
+    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
+    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
+    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
+    ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
+    impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
+    day = models.DateField(help_text='When this metric occurred')
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    value_converted_click = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / converted click')
+    value_conv = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / conv.')
+    view_through_conv = models.BigIntegerField(help_text='View-through conv.', null=True, blank=True)
+    
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % self.day
     
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, ad):
-            device = data.get('@device')
-            day = data.get('@day')
-            identifier = '%s-%s' % (device, day)
+            day = data.get('Day')
+            identifier = '%s' % day
             
             while not acquire_googleadwords_lock(DailyAdMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyAdMetrics.__name__, identifier)
@@ -1035,7 +1381,7 @@ class DailyAdMetrics(CommonMetrics, AdGroupAdCommonMetrics):
                
             try:
                 logger.debug("Success acquire_googleadwords_lock: %s:%s", DailyAdMetrics.__name__, identifier)
-                return self._populate(data, ignore_fields=['ad'], device=device, day=day, ad=ad)
+                return self._populate(data, ignore_fields=['ad'], day=day, ad=ad)
             
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAdMetrics.__name__, identifier)
@@ -1043,10 +1389,11 @@ class DailyAdMetrics(CommonMetrics, AdGroupAdCommonMetrics):
 
 def reportfile_file_upload_to(instance, filename):
     filename = "%s%s" % (instance.pk, os.path.splitext(filename)[1])
+    today = date.today()
     return os.path.join(settings.GOOGLEADWORDS_REPORT_FILE_ROOT,
-                        instance.created.strftime("%Y"),
-                        instance.created.strftime("%m"),
-                        instance.created.strftime("%d"),
+                        today.strftime("%Y"),
+                        today.strftime("%m"),
+                        today.strftime("%d"),
                         filename)
 
 class ReportFile(models.Model):
@@ -1055,6 +1402,9 @@ class ReportFile(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     
     objects = QuerySetManager()
+    
+    def __unicode__(self):
+        return '%s' % self.file
     
     class QuerySet(_QuerySet):
         def request(self, report_definition, client_customer_id):
@@ -1067,7 +1417,7 @@ class ReportFile(models.Model):
                 'reportName': 'Account Performance Report',
                 'dateRangeType': 'CUSTOM_DATE',
                 'reportType': 'ACCOUNT_PERFORMANCE_REPORT',
-                'downloadFormat': 'XML',
+                'downloadFormat': 'GZIPPED_CSV',
                 'selector': {
                     'fields': [
                                'AverageCpc',
@@ -1095,13 +1445,12 @@ class ReportFile(models.Model):
             @param client_customer_id: A string containing the Adwords Customer Client ID.
             @return OrderedDict containing report
             """
-            
             client = adwords_service(client_customer_id)
             report_downloader = client.GetReportDownloader(version=settings.GOOGLEADWORDS_CLIENT_VERSION)
             
             try:
                 report_file = ReportFile.objects.create()
-                with report_file.file_manager('%s.xml' % report_file.pk) as f:
+                with report_file.file_manager('%s.gz' % report_file.pk) as f:
                     report_downloader.DownloadReport(report_definition, output=f)
                 return report_file
             except GoogleAdsError as e:
@@ -1125,9 +1474,20 @@ class ReportFile(models.Model):
         This can be used to safely write to the file attribute and ensure that
         upon an error the file is removed (ie.. there is cleanup).
         """
-        with tempfile(delete=True) as f:
+        self.file.name = reportfile_file_upload_to(self, filename)
+        # Ensure directory exists
+        path = os.path.dirname(self.file.path)
+        try:
+            os.makedirs(path)
+        except OSError as exc: # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else: raise
+        
+        # Write to file
+        with open(self.file.path, mode='wb') as f:
             yield f
-            self.file.save(filename, File(f))
+            self.save()
 
     def save_path(self, path):
         """
@@ -1143,9 +1503,20 @@ class ReportFile(models.Model):
 
     def dehydrate(self):
         """
-        Convert the underlying report file into python (most likely, an OrderedDict).
+        Yield each row in the report as a dict.
         """
-        return xmltodict.parse(self.file.read())
+        name = None
+        fields = None
+        with gzip.open(self.file.path, 'r') as csv_file:
+            csv_reader = UnicodeReader(csv_file)
+            for row in csv_reader:
+                if name is None:
+                    name = row
+                elif fields is None:
+                    fields = row
+                # @hack - dirty but it will work for now!
+                elif row[0] != 'Total':
+                    yield dict(zip(fields, row))
 
 def receiver_delete_reportfile(sender, instance, **kwargs):
     if instance.file:

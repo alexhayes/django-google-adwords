@@ -4,7 +4,7 @@ A Django app that provides retrieval and storage of data from the Google Adwords
 
 ## Requirements
 
-- googleads==1.0.6
+- googleads==2.0.0
 - xmltodict==0.9.0
 - django-appconf==0.6
 - celery==3.1.12

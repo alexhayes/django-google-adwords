@@ -49,7 +49,7 @@
 			<column name='day' display='Day' />
 		</columns>
 		<row currency='AUD' account='example.com' adGroupID='1000000006'
-			adGroup='Ad Group #1' adGroupState='deleted' campaignID='10000006'
+			adGroup='Ad Group #1' adGroupState='removed' campaignID='10000006'
 			campaign='Campaign #5' campaignState='paused'
 			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
 			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
@@ -63,7 +63,7 @@
 			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
 			device='Computers' impressions='0' day='2014-07-13' />
 		<row currency='AUD' account='example.com' adGroupID='1000000006'
-			adGroup='Ad Group #1' adGroupState='deleted' campaignID='10000006'
+			adGroup='Ad Group #1' adGroupState='removed' campaignID='10000006'
 			campaign='Campaign #5' campaignState='paused'
 			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
 			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
@@ -77,7 +77,7 @@
 			conversions='0' cost='0' costConvertedClick='0' costConv='0' ctr='0.00%'
 			device='Mobile devices with full browsers' impressions='0' day='2014-07-13' />
 		<row currency='AUD' account='example.com' adGroupID='1000000006'
-			adGroup='Ad Group #1' adGroupState='deleted' campaignID='10000006'
+			adGroup='Ad Group #1' adGroupState='removed' campaignID='10000006'
 			campaign='Campaign #5' campaignState='paused'
 			maxCPAConvertedClicks='--' valueEstTotalConv='0.0' bidStrategyID='0'
 			bidStrategyName='' bidStrategyType='cpc' contentImprShare='--'
