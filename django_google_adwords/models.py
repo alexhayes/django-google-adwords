@@ -1006,8 +1006,11 @@ class AdGroup(models.Model):
                 
         def top_by_clicks(self, start, finish):
             return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
-                .annotate(clicks=Sum('metrics__clicks'), impressions=Sum('metrics__impressions'), \
-                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc'), avg_position=Avg('metrics__avg_position')) \
+                .annotate(clicks=Sum('metrics__clicks'), \
+                          impressions=Sum('metrics__impressions'), \
+                          ctr=Avg('metrics__ctr'), \
+                          avg_cpc=Avg('metrics__avg_cpc'), \
+                          avg_position=Avg('metrics__avg_position')) \
                 .order_by('-clicks')
                 
         def top_by_conversion_rate(self, start, finish):
@@ -1016,6 +1019,18 @@ class AdGroup(models.Model):
                 cost_converted_click=Avg('metrics__cost_converted_click'), \
                 clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
                 ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
+        
+        def account(self, account):
+            return self.filter(campaign__account=account)
+    
+        def enabled(self):
+            return self.filter(ad_group_state=AdGroup.STATE_ENABLED)
+    
+        def paused(self):
+            return self.filter(ad_group_state=AdGroup.STATE_PAUSED)
+    
+        def removed(self):
+            return self.filter(ad_group_state=AdGroup.STATE_REMOVED)
         
     @staticmethod
     def get_selector(start=None, finish=None):
