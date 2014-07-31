@@ -2,6 +2,7 @@ import os
 import re
 import time
 import pytz
+import errno
 import logging
 from django.db import models
 from django.db.models.query import QuerySet as _QuerySet
@@ -34,17 +35,17 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models.aggregates import Sum, Min, Avg
 from django.db.models import Max
 from django.template.defaultfilters import truncatechars
+import gzip
+from django_toolkit.csv.unicode import UnicodeReader
 
 class AdwordsDataInconsistency(Exception): pass
 
 logger = logging.getLogger(__name__)
 
-first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-all_cap_re = re.compile('([a-z0-9])([A-Z])')
+remove_non_letters = re.compile('[^a-z|_]')
 
 def attribute_to_field_name(attribute):
-    s1 = first_cap_re.sub(r'\1_\2', attribute[1:])
-    return all_cap_re.sub(r'\1_\2', s1).lower()
+    return remove_non_letters.sub(r'', attribute.lower().replace(' ', '_')).replace('__', '_')
 
 class PopulatingGoogleAdwordsQuerySet(_QuerySet):
     IGNORE_FIELDS = ['created', 'updated']
@@ -57,7 +58,7 @@ class PopulatingGoogleAdwordsQuerySet(_QuerySet):
         
         def clean(value, field):
             # If the adwords api returns "--" regardless of the field we want to return None
-            if value == '--':
+            if value == ' --':
                 return None
             
             # If money divide by 1,000,000 to get dollars/cents
@@ -315,9 +316,8 @@ class Account(models.Model):
         
         :param report_file: ReportFile
         """
-        dehydrated_report = report_file.dehydrate()
         try:
-            for row in dehydrated_report['report']['table']['row']:
+            for row in report_file.dehydrate():
                 account = Account.objects.populate(row, self)
                 DailyAccountMetrics.objects.populate(row, account=account)
                 
@@ -334,9 +334,8 @@ class Account(models.Model):
         
         :param report_file: ReportFile
         """
-        dehydrated_report = report_file.dehydrate()
         try:
-            for row in dehydrated_report['report']['table']['row']:
+            for row in report_file.dehydrate():
                 account = Account.objects.populate(row, self)
                 campaign = Campaign.objects.populate(row, account=account)
                 DailyCampaignMetrics.objects.populate(row, campaign=campaign)
@@ -354,9 +353,8 @@ class Account(models.Model):
         
         :param report_file: ReportFile
         """
-        dehydrated_report = report_file.dehydrate()
         try:
-            for row in dehydrated_report['report']['table']['row']:
+            for row in report_file.dehydrate():
                 account = Account.objects.populate(row, self)
                 campaign = Campaign.objects.populate(row, account=account)
                 ad_group = AdGroup.objects.populate(row, campaign=campaign)
@@ -375,9 +373,8 @@ class Account(models.Model):
         
         :param report_file: ReportFile
         """
-        dehydrated_report = report_file.dehydrate()
         try:
-            for row in dehydrated_report['report']['table']['row']:
+            for row in report_file.dehydrate():
                 account = Account.objects.populate(row, self)
                 campaign = Campaign.objects.populate(row, account=account)
                 ad_group = AdGroup.objects.populate(row, campaign=campaign)
@@ -402,7 +399,7 @@ class Account(models.Model):
             'reportName': 'Account Performance Report',
             'dateRangeType': 'CUSTOM_DATE',
             'reportType': 'ACCOUNT_PERFORMANCE_REPORT',
-            'downloadFormat': 'XML',
+            'downloadFormat': 'GZIPPED_CSV',
             'selector': {
                 'fields': [
                            'AccountCurrencyCode',
@@ -645,8 +642,8 @@ class DailyAccountMetrics(models.Model):
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, account):
-            device = data.get('@device')
-            day = data.get('@day')
+            device = data.get('Device')
+            day = data.get('Day')
             identifier = '%s-%s' % (device, day)
             
             while not acquire_googleadwords_lock(DailyAccountMetrics, identifier):
@@ -756,7 +753,7 @@ class Campaign(models.Model):
             """
             A locking get_or_create - note only the campaign_id is used in the 'get'.
             """
-            campaign_id = int(data.get('@campaignID'))
+            campaign_id = int(data.get('Campaign ID'))
 
             # Get a lock based upon the campaign id
             while not acquire_googleadwords_lock(Campaign, campaign_id):
@@ -785,7 +782,7 @@ class Campaign(models.Model):
             'reportName': 'Campaign Performance Report',
             'dateRangeType': 'CUSTOM_DATE',
             'reportType': 'CAMPAIGN_PERFORMANCE_REPORT',
-            'downloadFormat': 'XML',
+            'downloadFormat': 'GZIPPED_CSV',
             'selector': {
                 'fields': [
                             'AccountCurrencyCode',
@@ -941,8 +938,8 @@ class DailyCampaignMetrics(models.Model):
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, campaign):
-            device = data.get('@device')
-            day = data.get('@day')
+            device = data.get('Device')
+            day = data.get('Day')
             identifier = '%s-%s' % (device, day)
             
             while not acquire_googleadwords_lock(DailyCampaignMetrics, identifier):
@@ -989,7 +986,7 @@ class AdGroup(models.Model):
             """
             A locking get_or_create - note only the ad_group_id is used in the 'get'.
             """
-            ad_group_id = int(data.get('@adGroupID'))
+            ad_group_id = int(data.get('Ad group ID'))
 
             # Get a lock based upon the ad_group_id
             while not acquire_googleadwords_lock(AdGroup, ad_group_id):
@@ -1031,7 +1028,7 @@ class AdGroup(models.Model):
             'reportName': 'Ad Group Performance Report',
             'dateRangeType': 'CUSTOM_DATE',
             'reportType': 'ADGROUP_PERFORMANCE_REPORT',
-            'downloadFormat': 'XML',
+            'downloadFormat': 'GZIPPED_CSV',
             'selector': {
                 'fields': [
                             'AccountCurrencyCode',
@@ -1176,8 +1173,8 @@ class DailyAdGroupMetrics(models.Model):
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, ad_group):
-            device = data.get('@device')
-            day = data.get('@day')
+            device = data.get('Device')
+            day = data.get('Day')
             identifier = '%s-%s' % (device, day)
             
             while not acquire_googleadwords_lock(DailyAdGroupMetrics, identifier):
@@ -1244,7 +1241,7 @@ class Ad(models.Model):
             """
             A locking get_or_create - note only the ad_id is used in the 'get'.
             """
-            ad_id = int(data.get('@adID'))
+            ad_id = int(data.get('Ad ID'))
 
             # Get a lock based upon the campaign id
             while not acquire_googleadwords_lock(Ad, ad_id):
@@ -1286,7 +1283,7 @@ class Ad(models.Model):
             'reportName': 'Ad Performance Report',
             'dateRangeType': 'CUSTOM_DATE',
             'reportType': 'AD_PERFORMANCE_REPORT',
-            'downloadFormat': 'XML',
+            'downloadFormat': 'GZIPPED_CSV',
             'selector': {
                 'fields': [
                             'AccountCurrencyCode',
@@ -1378,8 +1375,8 @@ class DailyAdMetrics(models.Model):
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, ad):
-            device = data.get('@device')
-            day = data.get('@day')
+            device = data.get('Device')
+            day = data.get('Day')
             identifier = '%s-%s' % (device, day)
             
             while not acquire_googleadwords_lock(DailyAdMetrics, identifier):
@@ -1396,10 +1393,11 @@ class DailyAdMetrics(models.Model):
 
 def reportfile_file_upload_to(instance, filename):
     filename = "%s%s" % (instance.pk, os.path.splitext(filename)[1])
+    today = date.today()
     return os.path.join(settings.GOOGLEADWORDS_REPORT_FILE_ROOT,
-                        instance.created.strftime("%Y"),
-                        instance.created.strftime("%m"),
-                        instance.created.strftime("%d"),
+                        today.strftime("%Y"),
+                        today.strftime("%m"),
+                        today.strftime("%d"),
                         filename)
 
 class ReportFile(models.Model):
@@ -1423,7 +1421,7 @@ class ReportFile(models.Model):
                 'reportName': 'Account Performance Report',
                 'dateRangeType': 'CUSTOM_DATE',
                 'reportType': 'ACCOUNT_PERFORMANCE_REPORT',
-                'downloadFormat': 'XML',
+                'downloadFormat': 'GZIPPED_CSV',
                 'selector': {
                     'fields': [
                                'AverageCpc',
@@ -1456,7 +1454,7 @@ class ReportFile(models.Model):
             
             try:
                 report_file = ReportFile.objects.create()
-                with report_file.file_manager('%s.xml' % report_file.pk) as f:
+                with report_file.file_manager('%s.gz' % report_file.pk) as f:
                     report_downloader.DownloadReport(report_definition, output=f)
                 return report_file
             except GoogleAdsError as e:
@@ -1480,9 +1478,20 @@ class ReportFile(models.Model):
         This can be used to safely write to the file attribute and ensure that
         upon an error the file is removed (ie.. there is cleanup).
         """
-        with tempfile(delete=True) as f:
+        self.file.name = reportfile_file_upload_to(self, filename)
+        # Ensure directory exists
+        path = os.path.dirname(self.file.path)
+        try:
+            os.makedirs(path)
+        except OSError as exc: # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else: raise
+        
+        # Write to file
+        with open(self.file.path, mode='wb') as f:
             yield f
-            self.file.save(filename, File(f))
+            self.save()
 
     def save_path(self, path):
         """
@@ -1498,9 +1507,20 @@ class ReportFile(models.Model):
 
     def dehydrate(self):
         """
-        Convert the underlying report file into python (most likely, an OrderedDict).
+        Yield each row in the report as a dict.
         """
-        return xmltodict.parse(self.file.read())
+        name = None
+        fields = None
+        with gzip.open(self.file.path, 'r') as csv_file:
+            csv_reader = UnicodeReader(csv_file)
+            for row in csv_reader:
+                if name is None:
+                    name = row
+                elif fields is None:
+                    fields = row
+                # @hack - dirty but it will work for now!
+                elif row[0] != 'Total':
+                    yield dict(zip(fields, row))
 
 def receiver_delete_reportfile(sender, instance, **kwargs):
     if instance.file:
