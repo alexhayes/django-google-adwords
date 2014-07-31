@@ -658,6 +658,15 @@ class DailyAccountMetrics(models.Model):
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAccountMetrics.__name__, identifier)
                 release_googleadwords_lock(DailyAccountMetrics, identifier)
         
+        def desktop(self):
+            return self.filter(device=DailyAccountMetrics.DEVICE_DESKTOP)
+            
+        def mobile(self):
+            return self.filter(device=DailyAccountMetrics.DEVICE_HIGH_END_MOBILE)
+            
+        def tablet(self):
+            return self.filter(device=DailyAccountMetrics.DEVICE_TABLET)
+        
         def within_period(self, start, finish):
             return self.filter(day__gte=start, day__lte=finish)
         
@@ -1283,6 +1292,21 @@ class Ad(models.Model):
                 cost_converted_click=Avg('metrics__cost_converted_click'), \
                 clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
                 ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
+                
+        def account(self, account):
+            return self.filter(ad_group__campaign__account=account)
+    
+        def enabled(self):
+            return self.filter(ad_state=Ad.STATE_ENABLED)
+    
+        def paused(self):
+            return self.filter(ad_state=Ad.STATE_PAUSED)
+    
+        def removed(self):
+            return self.filter(ad_state=Ad.STATE_REMOVED)
+        
+        def text(self):
+            return self.filter(ad_type=Ad.TYPE_TEXT_AD)
     
     @staticmethod
     def get_selector(start=None, finish=None):
