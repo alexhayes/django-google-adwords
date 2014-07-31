@@ -456,15 +456,15 @@ class Account(models.Model):
         first_synced_date = None
         if account_first_synced.has_key('day__min'):
             first_synced_date = account_first_synced['day__min']
-            
-        if not self.last_synced or (self.last_synced - timedelta(days=1)) < finish or not first_synced_date or first_synced_date > start:
+        
+        if not self.account_last_synced or self.account_last_synced < finish or not first_synced_date or first_synced_date > start:
             raise AdwordsDataInconsistency('Google Adwords Account %s does not have correct amount of data to calculate the spend between "%s" and "%s"' % (
                 self, 
                 start, 
                 finish, 
             ))
         
-        cost = self.account_metrics.filter(day__gte=start, day__lte=finish).aggregate(Sum('cost'))['cost__sum']
+        cost = self.metrics.filter(day__gte=start, day__lte=finish).aggregate(Sum('cost'))['cost__sum']
         
         if cost == None:
             return 0
@@ -712,11 +712,11 @@ class DailyAccountMetrics(models.Model):
         def daily_average_click_conversion_rate_for_period(self, start, finish):
             return self.within_period(start, finish).values('day').annotate(click_conversion_rate=Avg('click_conversion_rate'))
         
-        def average_cost_converted_click_for_period(self, start, finish):
-            return self.within_period(start, finish).aggregate(Avg('cost_converted_click'))
+        def average_cost_conv_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Avg('cost_conv'))
             
-        def daily_average_cost_converted_click_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(cost_converted_click=Avg('cost_converted_click'))
+        def daily_average_cost_conv_for_period(self, start, finish):
+            return self.within_period(start, finish).values('day').annotate(cost_conv=Avg('cost_conv'))
 
         def average_search_lost_impression_share_budget(self, start, finish):
             return self.within_period(start, finish).aggregate(Avg('search_lost_is_budget'))
@@ -823,7 +823,6 @@ class Campaign(models.Model):
                             'CostPerEstimatedTotalConversion',
                             'CostPerEstimatedTotalConversion',
                             'Ctr',
-                            'Device',
                             'EstimatedCrossDeviceConversions',
                             'EstimatedCrossDeviceConversions',
                             'EstimatedTotalConversionRate',
@@ -886,17 +885,6 @@ class DailyCampaignMetrics(models.Model):
         (BID_STRATEGY_TYPE_UNKNOWN, 'Unknown')
     )
     
-    DEVICE_UNKNOWN = 'Other'
-    DEVICE_DESKTOP = 'Computers'
-    DEVICE_HIGH_END_MOBILE = 'Mobile devices with full browsers'
-    DEVICE_TABLET = 'Tablets with full browsers'
-    DEVICE_CHOICES = (
-        (DEVICE_UNKNOWN, DEVICE_UNKNOWN),
-        (DEVICE_DESKTOP, DEVICE_DESKTOP),
-        (DEVICE_HIGH_END_MOBILE, DEVICE_HIGH_END_MOBILE),
-        (DEVICE_TABLET, DEVICE_TABLET)
-    )
-    
     campaign = models.ForeignKey('django_google_adwords.Campaign', related_name='metrics')
     avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
     avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
@@ -911,7 +899,6 @@ class DailyCampaignMetrics(models.Model):
     cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
     cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
     ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
-    device = models.CharField(max_length=255, choices=DEVICE_CHOICES, help_text='Device')
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
     created = models.DateTimeField(auto_now_add=True)
@@ -947,9 +934,8 @@ class DailyCampaignMetrics(models.Model):
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, campaign):
-            device = data.get('Device')
             day = data.get('Day')
-            identifier = '%s-%s' % (device, day)
+            identifier = '%s' % day
             
             while not acquire_googleadwords_lock(DailyCampaignMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyCampaignMetrics.__name__, identifier)
@@ -959,7 +945,6 @@ class DailyCampaignMetrics(models.Model):
                 logger.debug("Success acquire_googleadwords_lock: %s:%s", DailyCampaignMetrics.__name__, identifier)
                 return self._populate(data,
                                   ignore_fields=['campaign'],
-                                  device=device,
                                   day=day,
                                   campaign=campaign)
             
@@ -1022,7 +1007,7 @@ class AdGroup(models.Model):
         def top_by_conversion_rate(self, start, finish):
             return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
                 .annotate(conversions=Sum('metrics__conversions'), conv_rate=Avg('metrics__conv_rate'), \
-                cost_converted_click=Avg('metrics__cost_converted_click'), \
+                cost_conv=Avg('metrics__cost_conv'), \
                 clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
                 ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
         
@@ -1096,7 +1081,6 @@ class AdGroup(models.Model):
                             'CostPerConversion',
                             'CostPerConversionManyPerClick',
                             'Ctr',
-                            'Device',
                             'Impressions',
                             'Date',
                            ],
@@ -1138,17 +1122,6 @@ class DailyAdGroupMetrics(models.Model):
         (BID_STRATEGY_TYPE_UNKNOWN, 'Unknown')
     )
     
-    DEVICE_UNKNOWN = 'Other'
-    DEVICE_DESKTOP = 'Computers'
-    DEVICE_HIGH_END_MOBILE = 'Mobile devices with full browsers'
-    DEVICE_TABLET = 'Tablets with full browsers'
-    DEVICE_CHOICES = (
-        (DEVICE_UNKNOWN, DEVICE_UNKNOWN),
-        (DEVICE_DESKTOP, DEVICE_DESKTOP),
-        (DEVICE_HIGH_END_MOBILE, DEVICE_HIGH_END_MOBILE),
-        (DEVICE_TABLET, DEVICE_TABLET)
-    )
-    
     ad_group = models.ForeignKey('django_google_adwords.AdGroup', related_name='metrics')
     avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
     avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
@@ -1163,7 +1136,6 @@ class DailyAdGroupMetrics(models.Model):
     cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
     cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
     ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
-    device = models.CharField(max_length=255, choices=DEVICE_CHOICES, help_text='Device')
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
     created = models.DateTimeField(auto_now_add=True)
@@ -1197,9 +1169,8 @@ class DailyAdGroupMetrics(models.Model):
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, ad_group):
-            device = data.get('Device')
             day = data.get('Day')
-            identifier = '%s-%s' % (device, day)
+            identifier = '%s' % day
             
             while not acquire_googleadwords_lock(DailyAdGroupMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyAdGroupMetrics.__name__, identifier)
@@ -1207,7 +1178,7 @@ class DailyAdGroupMetrics(models.Model):
                
             try:
                 logger.debug("Success acquire_googleadwords_lock: %s:%s", DailyAdGroupMetrics.__name__, identifier)
-                return self._populate(data, ignore_fields=['ad_group'], device=device, day=day, ad_group=ad_group)
+                return self._populate(data, ignore_fields=['ad_group'], day=day, ad_group=ad_group)
             
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAdGroupMetrics.__name__, identifier)
@@ -1289,7 +1260,7 @@ class Ad(models.Model):
         def top_by_conversion_rate(self, start, finish):
             return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
                 .annotate(conversions=Sum('metrics__conversions'), conv_rate=Avg('metrics__conv_rate'), \
-                cost_converted_click=Avg('metrics__cost_converted_click'), \
+                cost_conv=Avg('metrics__cost_conv'), \
                 clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
                 ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
                 
@@ -1350,7 +1321,6 @@ class Ad(models.Model):
                             'Ctr',
                             'Description1',
                             'Description2',
-                            'Device',
                             'DisplayUrl',
                             'Headline',
                             'Id',
@@ -1372,17 +1342,6 @@ class Ad(models.Model):
         return report_definition
     
 class DailyAdMetrics(models.Model):
-    DEVICE_UNKNOWN = 'Other'
-    DEVICE_DESKTOP = 'Computers'
-    DEVICE_HIGH_END_MOBILE = 'Mobile devices with full browsers'
-    DEVICE_TABLET = 'Tablets with full browsers'
-    DEVICE_CHOICES = (
-        (DEVICE_UNKNOWN, DEVICE_UNKNOWN),
-        (DEVICE_DESKTOP, DEVICE_DESKTOP),
-        (DEVICE_HIGH_END_MOBILE, DEVICE_HIGH_END_MOBILE),
-        (DEVICE_TABLET, DEVICE_TABLET)
-    )
-    
     ad = models.ForeignKey('django_google_adwords.Ad', related_name='metrics')
     avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
     avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
@@ -1397,7 +1356,6 @@ class DailyAdMetrics(models.Model):
     cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
     cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
     ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
-    device = models.CharField(max_length=255, choices=DEVICE_CHOICES, help_text='Device')
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
     created = models.DateTimeField(auto_now_add=True)
@@ -1414,9 +1372,8 @@ class DailyAdMetrics(models.Model):
     class QuerySet(PopulatingGoogleAdwordsQuerySet):
 
         def populate(self, data, ad):
-            device = data.get('Device')
             day = data.get('Day')
-            identifier = '%s-%s' % (device, day)
+            identifier = '%s' % day
             
             while not acquire_googleadwords_lock(DailyAdMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyAdMetrics.__name__, identifier)
@@ -1424,7 +1381,7 @@ class DailyAdMetrics(models.Model):
                
             try:
                 logger.debug("Success acquire_googleadwords_lock: %s:%s", DailyAdMetrics.__name__, identifier)
-                return self._populate(data, ignore_fields=['ad'], device=device, day=day, ad=ad)
+                return self._populate(data, ignore_fields=['ad'], day=day, ad=ad)
             
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAdMetrics.__name__, identifier)
