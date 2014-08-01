@@ -9,9 +9,9 @@ class GoogleAdwordsConf(AppConf):
     DEVELOPER_TOKEN = ''
     
     SYNC_ACCOUNT = True
-    SYNC_CAMPAIGN = True
-    SYNC_ADGROUP = True
-    SYNC_AD = True
+    SYNC_CAMPAIGN = False
+    SYNC_ADGROUP = False
+    SYNC_AD = False
 
     # Defaults - probably don't need to be changed
     CLIENT_VERSION = 'v201406'
