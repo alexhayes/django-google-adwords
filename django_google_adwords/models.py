@@ -38,6 +38,8 @@ from django.template.defaultfilters import truncatechars
 import gzip
 from django_toolkit.csv.unicode import UnicodeReader
 
+SYNC_ADWORDS_DATA_TIMEOUT = 60 * 60 * 3 # 3 HOURS
+
 class AdwordsDataInconsistency(Exception): pass
 
 logger = logging.getLogger(__name__)
@@ -153,6 +155,12 @@ class Account(models.Model):
         def active(self):
             return Account.objects.filter(status=Account.STATUS_ACTIVE)
         
+        def inactive(self):
+            return Account.objects.filter(status=Account.STATUS_INACTIVE)
+        
+        def considered_active(self):
+            return Account.objects.filter(status__in=Account.STATUS_CONSIDERED_ACTIVE)
+        
         def populate(self, data, account):
             """
             A locking get_or_create - note only the account_id is used in the 'get'.
@@ -173,7 +181,7 @@ class Account(models.Model):
                 release_googleadwords_lock(Account, account.account_id)
     
     @task(name='Account.sync', ignore_result=True, queue=settings.GOOGLEADWORDS_START_FINISH_CELERY_QUEUE)
-    def sync(self, start=None, force=False):
+    def sync(self, start=None, force=False, sync_account=True, sync_campaign=False, sync_adgroup=False, sync_ad=False):
         """
         Sync all data from Google Adwords API for this account.
         
@@ -191,7 +199,7 @@ class Account(models.Model):
         """
         Account
         """
-        if settings.GOOGLEADWORDS_SYNC_ACCOUNT:
+        if sync_account:
             if not force and not self.account_last_synced:
                 account_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_ACCOUNT_SYNC_DAYS)
             elif not force and self.account_last_synced:
@@ -203,7 +211,7 @@ class Account(models.Model):
         """
         Campaign
         """
-        if settings.GOOGLEADWORDS_SYNC_CAMPAIGN:
+        if sync_campaign:
             if not force and not self.campaign_last_synced:
                 campaign_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_CAMPAIGN_SYNC_DAYS)
             elif not force and self.campaign_last_synced:
@@ -215,7 +223,7 @@ class Account(models.Model):
         """
         Ad Group
         """
-        if settings.GOOGLEADWORDS_SYNC_ADGROUP:
+        if sync_adgroup:
             if not force and not self.ad_group_last_synced:
                 ad_group_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_ADGROUP_SYNC_DAYS)
             elif not force and self.ad_group_last_synced:
@@ -228,7 +236,7 @@ class Account(models.Model):
         """
         Ad
         """
-        if settings.GOOGLEADWORDS_SYNC_AD:
+        if sync_ad:
             if not force and not self.ad_last_synced:
                 ad_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_AD_SYNC_DAYS)
             elif not force and self.ad_last_synced:
@@ -307,7 +315,7 @@ class Account(models.Model):
         except GoogleAdsError, exc:
             raise InterceptedGoogleAdsError(exc, account_id=self.account_id)
     
-    @task(name='Account.sync_account', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
+    @task(name='Account.sync_account', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE, time_limit=SYNC_ADWORDS_DATA_TIMEOUT, soft_time_limit=SYNC_ADWORDS_DATA_TIMEOUT)
     @ensure_self
     @refresh
     def sync_account(self, report_file):
@@ -325,7 +333,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
         
-    @task(name='Account.sync_campaign', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
+    @task(name='Account.sync_campaign', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE, time_limit=SYNC_ADWORDS_DATA_TIMEOUT, soft_time_limit=SYNC_ADWORDS_DATA_TIMEOUT)
     @ensure_self
     @refresh
     def sync_campaign(self, report_file):
@@ -344,7 +352,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing campaign for account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
     
-    @task(name='Account.sync_ad_group', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
+    @task(name='Account.sync_ad_group', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE, time_limit=SYNC_ADWORDS_DATA_TIMEOUT, soft_time_limit=SYNC_ADWORDS_DATA_TIMEOUT)
     @ensure_self
     @refresh
     def sync_ad_group(self, report_file):
@@ -364,7 +372,7 @@ class Account(models.Model):
             logger.info("Caught KeyError syncing ad group for account '%s', report_file '%s' - Report doesn't have expected rows", self.pk, report_file.pk)
             raise
     
-    @task(name='Account.sync_ad', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE)
+    @task(name='Account.sync_ad', queue=settings.GOOGLEADWORDS_DATA_IMPORT_CELERY_QUEUE, time_limit=SYNC_ADWORDS_DATA_TIMEOUT, soft_time_limit=SYNC_ADWORDS_DATA_TIMEOUT)
     @ensure_self
     @refresh
     def sync_ad(self, report_file):
@@ -1000,7 +1008,7 @@ class AdGroup(models.Model):
                 .annotate(clicks=Sum('metrics__clicks'), \
                           impressions=Sum('metrics__impressions'), \
                           ctr=Avg('metrics__ctr'), \
-                          avg_cpc=Avg('metrics__avg_cpc'), \
+                          cost=Sum('metrics__cost'), \
                           avg_position=Avg('metrics__avg_position')) \
                 .order_by('-clicks')
                 
@@ -1254,7 +1262,7 @@ class Ad(models.Model):
         def top_by_clicks(self, start, finish):
             return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
                 .annotate(clicks=Sum('metrics__clicks'), impressions=Sum('metrics__impressions'), \
-                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc'), avg_position=Avg('metrics__avg_position')) \
+                ctr=Avg('metrics__ctr'), cost=Sum('metrics__cost'), avg_position=Avg('metrics__avg_position')) \
                 .order_by('-clicks')
                 
         def top_by_conversion_rate(self, start, finish):
