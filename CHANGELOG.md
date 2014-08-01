@@ -1,3 +1,8 @@
+# Release 0.3.1 - Fri Aug  1 13:55:09 EST 2014
+
+- Changed top ads adgroup by conversion
+- Added custom sync tasks
+
 # Release 0.3.0 - Thu Jul 31 15:21:22 EST 2014
 
 - Bug fix
