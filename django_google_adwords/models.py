@@ -1015,9 +1015,9 @@ class AdGroup(models.Model):
         def top_by_conversion_rate(self, start, finish):
             return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
                 .annotate(conversions=Sum('metrics__conversions'), conv_rate=Avg('metrics__conv_rate'), \
-                cost_conv=Avg('metrics__cost_conv'), \
+                cost_conv=Avg('metrics__cost_conv'), impressions=Sum('metrics__impressions'), \
                 clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
-                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conversions')
         
         def account(self, account):
             return self.filter(campaign__account=account)
@@ -1268,9 +1268,9 @@ class Ad(models.Model):
         def top_by_conversion_rate(self, start, finish):
             return self.filter(metrics__day__gte=start, metrics__day__lte=finish) \
                 .annotate(conversions=Sum('metrics__conversions'), conv_rate=Avg('metrics__conv_rate'), \
-                cost_conv=Avg('metrics__cost_conv'), \
+                cost_conv=Avg('metrics__cost_conv'), impressions=Sum('metrics__impressions'), \
                 clicks=Sum('metrics__clicks'), cost=Sum('metrics__cost'), \
-                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conv_rate')
+                ctr=Avg('metrics__ctr'), avg_cpc=Avg('metrics__avg_cpc')).order_by('-conversions')
                 
         def account(self, account):
             return self.filter(ad_group__campaign__account=account)
