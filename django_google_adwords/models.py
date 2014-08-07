@@ -44,7 +44,7 @@ class AdwordsDataInconsistency(Exception): pass
 
 logger = logging.getLogger(__name__)
 
-remove_non_letters = re.compile('[^a-z|_]')
+remove_non_letters = re.compile('[^a-z|0-9|_]')
 
 def attribute_to_field_name(attribute):
     return remove_non_letters.sub(r'', attribute.lower().replace(' ', '_')).replace('__', '_')
@@ -228,7 +228,6 @@ class Account(models.Model):
                 ad_group_start = date.today() - timedelta(days=settings.GOOGLEADWORDS_NEW_ACCOUNT_ADGROUP_SYNC_DAYS)
             elif not force and self.ad_group_last_synced:
                 ad_group_start = self.ad_group_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_ADGROUP_SYNC_DAYS)
-                print ad_group_start
             elif force and start:
                 ad_group_start = start
             tasks.append(self.create_report_file.si(AdGroup.get_selector(start=ad_group_start)) | self.sync_ad_group.s(this=self) | self.finish_ad_group_sync.s(this=self))
@@ -1228,8 +1227,8 @@ class Ad(models.Model):
     destination_url = models.TextField(help_text='Destination URL', null=True, blank=True)
     display_url = models.TextField(help_text='Display URL', null=True, blank=True)
     ad = models.TextField(help_text='Ad/Headline', null=True, blank=True)
-    description_line1 = models.TextField(help_text='Description line 1', null=True, blank=True)
-    description_line2 = models.TextField(help_text='Description line 2', null=True, blank=True)
+    description_line_1 = models.TextField(help_text='Description line 1', null=True, blank=True)
+    description_line_2 = models.TextField(help_text='Description line 2', null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     
