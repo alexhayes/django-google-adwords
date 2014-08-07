@@ -1,3 +1,7 @@
+# Release 0.3.2 - Thu Aug  7 11:34:15 EST 2014
+
+- Changed some field names, changed tests to use gz files
+
 # Release 0.3.1 - Fri Aug  1 13:55:09 EST 2014
 
 - Changed top ads adgroup by conversion
