@@ -1220,10 +1220,24 @@ class Ad(models.Model):
         (TYPE_DYNAMIC_SEARCH_AD, 'Dynamic Search Ad')
     )
     
+    APPROVAL_STATUS_APPROVED = 'approved'
+    APPROVAL_STATUS_APPROVED_NON_FAMILY = 'approved (non family)'
+    APPROVAL_STATUS_APPROVED_ADULT = 'approved (adult)'
+    APPROVAL_STATUS_PENDING_REVIEW = 'pending review'
+    APPROVAL_STATUS_DISAPPROVED = 'disapproved'
+    APPROVAL_STATUS_CHOICES = (
+        (APPROVAL_STATUS_APPROVED, 'Approved'),
+        (APPROVAL_STATUS_APPROVED_NON_FAMILY, 'Approved (Non Family)'),
+        (APPROVAL_STATUS_APPROVED_ADULT, 'Approved (Adult)'),
+        (APPROVAL_STATUS_PENDING_REVIEW, 'Pending Review'),
+        (APPROVAL_STATUS_DISAPPROVED, 'Disapproved')
+    )
+    
     ad_group = models.ForeignKey('django_google_adwords.AdGroup', related_name='ads')
     ad_id = models.BigIntegerField(help_text='Googles Ad ID')
     ad_state = models.CharField(max_length=20, choices=STATE_CHOICES, null=True, blank=True)
     ad_type = models.CharField(max_length=20, choices=TYPE_CHOICES, null=True, blank=True)
+    ad_approval_status = models.CharField(max_length=20, choices=APPROVAL_STATUS_CHOICES, null=True, blank=True)
     destination_url = models.TextField(help_text='Destination URL', null=True, blank=True)
     display_url = models.TextField(help_text='Display URL', null=True, blank=True)
     ad = models.TextField(help_text='Ad/Headline', null=True, blank=True)
@@ -1324,6 +1338,7 @@ class Ad(models.Model):
                             'Cost',
                             'CostPerConversion',
                             'CostPerConversionManyPerClick',
+                            'CreativeApprovalStatus',
                             'CreativeDestinationUrl',
                             'Ctr',
                             'Description1',

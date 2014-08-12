@@ -1,3 +1,7 @@
+# Release 0.3.3 - Wed Aug 13 08:45:18 EST 2014
+
+- Added Ad approval status field to model
+
 # Release 0.3.2 - Thu Aug  7 11:34:15 EST 2014
 
 - Changed some field names, changed tests to use gz files
