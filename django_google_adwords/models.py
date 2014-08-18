@@ -783,7 +783,16 @@ class Campaign(models.Model):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", Campaign.__name__, campaign_id)
                 release_googleadwords_lock(Campaign, campaign_id)
+                
+        def enabled(self):
+            return self.filter(campaign_state=Campaign.STATE_ENABLED)
     
+        def paused(self):
+            return self.filter(campaign_state=Campaign.STATE_PAUSED)
+        
+        def removed(self):
+            return self.filter(campaign_state=Campaign.STATE_REMOVED)
+        
     @staticmethod
     def get_selector(start=None, finish=None):
         """
@@ -958,6 +967,15 @@ class DailyCampaignMetrics(models.Model):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyCampaignMetrics.__name__, identifier)
                 release_googleadwords_lock(DailyCampaignMetrics, identifier)
+                
+        def within_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish)
+        
+        def total_clicks_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('clicks'))
+        
+        def total_clicks(self):
+            return self.aggregate(Sum('clicks'))
             
 class AdGroup(models.Model):
     STATE_ENABLED = 'enabled'
@@ -1190,6 +1208,15 @@ class DailyAdGroupMetrics(models.Model):
             finally:
                 logger.debug("Releasing acquire_googleadwords_lock: %s:%s", DailyAdGroupMetrics.__name__, identifier)
                 release_googleadwords_lock(DailyAdGroupMetrics, identifier)
+                
+        def within_period(self, start, finish):
+            return self.filter(day__gte=start, day__lte=finish)
+        
+        def total_clicks_for_period(self, start, finish):
+            return self.within_period(start, finish).aggregate(Sum('clicks'))
+        
+        def total_clicks(self):
+            return self.aggregate(Sum('clicks'))
     
 class Ad(models.Model):
     STATE_ENABLED = 'enabled'
