@@ -1,3 +1,7 @@
+# Release 0.3.4 - Mon Aug 18 11:06:19 EST 2014
+
+- Added some querysets
+
 # Release 0.3.3 - Wed Aug 13 08:45:18 EST 2014
 
 - Added Ad approval status field to model
