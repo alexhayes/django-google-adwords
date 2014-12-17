@@ -7,7 +7,21 @@ import logging
 from django.db import models
 from django.db.models.query import QuerySet as _QuerySet
 from django_toolkit.db.models import QuerySetManager
-from money.contrib.django.models.fields import MoneyField
+from django_toolkit.db.models import QuerySetManager
+
+# Use djmoney instead (https://github.com/jakewins/django-money)
+# since the python-money module hasn't been updated for >3 years
+#from money.contrib.django.models.fields import MoneyField
+import moneyed
+import moneyed.classes
+# See https://github.com/jakewins/django-money/issues/85
+moneyed.classes.Money.deconstruct = lambda self: (
+    'moneyed.classes.Money',
+    (self.amount, self.currency.code),
+    {}
+)
+from djmoney.models.fields import MoneyField
+
 from django.db.models.query import QuerySet
 from datetime import date, timedelta, datetime
 from .settings import GoogleAdwordsConf
@@ -39,6 +53,7 @@ import gzip
 from django_toolkit.csv.unicode import UnicodeReader
 
 SYNC_ADWORDS_DATA_TIMEOUT = 60 * 60 * 3 # 3 HOURS
+LOCAL_CURRENCY='USD'
 
 class AdwordsDataInconsistency(Exception): pass
 
@@ -606,8 +621,8 @@ class DailyAccountMetrics(models.Model):
     )
     
     account = models.ForeignKey('django_google_adwords.Account', related_name='metrics')
-    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
-    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
+    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Avg. CPC', null=True, blank=True)
+    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Avg. CPM', null=True, blank=True)
     avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
     clicks = models.IntegerField(help_text='Clicks', null=True, blank=True)
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
@@ -615,9 +630,9 @@ class DailyAccountMetrics(models.Model):
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
     total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
-    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
-    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
-    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
+    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost', null=True, blank=True)
+    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / converted click', null=True, blank=True)
+    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / conv.', null=True, blank=True)
     ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
     device = models.CharField(max_length=255, choices=DEVICE_CHOICES, help_text='Device')
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
@@ -626,7 +641,7 @@ class DailyAccountMetrics(models.Model):
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
     content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
-    cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / est. total conv.', null=True, blank=True)
+    cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / est. total conv.', null=True, blank=True)
     est_cross_device_conv = models.BigIntegerField(help_text='Est. cross-device conv.', null=True, blank=True)
     est_total_conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. rate')
     est_total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value')
@@ -754,7 +769,7 @@ class Campaign(models.Model):
     campaign_id = models.BigIntegerField(unique=True)
     campaign = models.CharField(max_length=255, help_text='Campaign name')
     campaign_state = models.CharField(max_length=20, choices=STATE_CHOICES)
-    budget = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Budget', null=True, blank=True)
+    budget = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Budget', null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
 
@@ -902,8 +917,8 @@ class DailyCampaignMetrics(models.Model):
     )
     
     campaign = models.ForeignKey('django_google_adwords.Campaign', related_name='metrics')
-    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
-    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
+    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Avg. CPC', null=True, blank=True)
+    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Avg. CPM', null=True, blank=True)
     avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
     clicks = models.IntegerField(help_text='Clicks', null=True, blank=True)
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
@@ -911,9 +926,9 @@ class DailyCampaignMetrics(models.Model):
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
     total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
-    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
-    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
-    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
+    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost', null=True, blank=True)
+    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / converted click', null=True, blank=True)
+    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / conv.', null=True, blank=True)
     ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
@@ -921,7 +936,7 @@ class DailyCampaignMetrics(models.Model):
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
     content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
-    cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / est. total conv.', null=True, blank=True)
+    cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / est. total conv.', null=True, blank=True)
     est_cross_device_conv = models.BigIntegerField(help_text='Est. cross-device conv.', null=True, blank=True)
     est_total_conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. rate')
     est_total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value')
@@ -1148,8 +1163,8 @@ class DailyAdGroupMetrics(models.Model):
     )
     
     ad_group = models.ForeignKey('django_google_adwords.AdGroup', related_name='metrics')
-    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
-    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
+    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Avg. CPC', null=True, blank=True)
+    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Avg. CPM', null=True, blank=True)
     avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
     clicks = models.IntegerField(help_text='Clicks', null=True, blank=True)
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
@@ -1157,9 +1172,9 @@ class DailyAdGroupMetrics(models.Model):
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
     total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
-    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
-    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
-    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
+    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost', null=True, blank=True)
+    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / converted click', null=True, blank=True)
+    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / conv.', null=True, blank=True)
     ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
@@ -1167,7 +1182,7 @@ class DailyAdGroupMetrics(models.Model):
     updated = models.DateTimeField(auto_now=True, auto_now_add=True)
     content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
     content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
-    cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / est. total conv.', null=True, blank=True)
+    cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / est. total conv.', null=True, blank=True)
     est_cross_device_conv = models.BigIntegerField(help_text='Est. cross-device conv.', null=True, blank=True)
     est_total_conv_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. rate')
     est_total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Est. total conv. value')
@@ -1180,7 +1195,7 @@ class DailyAdGroupMetrics(models.Model):
     bid_strategy_id = models.BigIntegerField(help_text='Bid Strategy ID', null=True, blank=True)
     bid_strategy_name = models.CharField(max_length=255, null=True, blank=True)
     bid_strategy_type = models.CharField(max_length=40, choices=BID_STRATEGY_TYPE_CHOICES, help_text='Bid Strategy Type', null=True, blank=True)
-    max_cpa_converted_clicks = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Max. CPA (converted clicks)', null=True, blank=True)
+    max_cpa_converted_clicks = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Max. CPA (converted clicks)', null=True, blank=True)
     value_est_total_conv = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / est. total conv.')
     value_converted_click = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / converted click')
     value_conv = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / conv.')
@@ -1392,8 +1407,8 @@ class Ad(models.Model):
     
 class DailyAdMetrics(models.Model):
     ad = models.ForeignKey('django_google_adwords.Ad', related_name='metrics')
-    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPC', null=True, blank=True)
-    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Avg. CPM', null=True, blank=True)
+    avg_cpc = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Avg. CPC', null=True, blank=True)
+    avg_cpm = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Avg. CPM', null=True, blank=True)
     avg_position = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Avg. position')
     clicks = models.IntegerField(help_text='Clicks', null=True, blank=True)
     click_conversion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Click conversion rate')
@@ -1401,9 +1416,9 @@ class DailyAdMetrics(models.Model):
     converted_clicks = models.BigIntegerField(help_text='Converted clicks', null=True, blank=True)
     total_conv_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Total conv. value')
     conversions = models.BigIntegerField(help_text='Conversions', null=True, blank=True)
-    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost', null=True, blank=True)
-    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / converted click', null=True, blank=True)
-    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency='AUD', help_text='Cost / conv.', null=True, blank=True)
+    cost = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost', null=True, blank=True)
+    cost_converted_click = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / converted click', null=True, blank=True)
+    cost_conv = MoneyField(max_digits=12, decimal_places=2, default=0, default_currency=LOCAL_CURRENCY, help_text='Cost / conv.', null=True, blank=True)
     ctr = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='CTR')
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
