@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def adwords_service(client_customer_id=None):
     """
     Get an instance of GoogleRefreshTokenClient with configuration as per defined settings
@@ -14,28 +15,27 @@ def adwords_service(client_customer_id=None):
     """
     if not client_customer_id:
         client_customer_id = settings.GOOGLEADWORDS_CLIENT_CUSTOMER_ID
-        
+
     oauth2_client = GoogleRefreshTokenClient(
-                        client_id=settings.GOOGLEADWORDS_CLIENT_ID,
-                        client_secret=settings.GOOGLEADWORDS_CLIENT_SECRET,
-                        refresh_token=settings.GOOGLEADWORDS_REFRESH_TOKEN
-                    )
-    
-    return AdWordsClient(
-            developer_token=settings.GOOGLEADWORDS_DEVELOPER_TOKEN,
-            oauth2_client=oauth2_client,
-            user_agent=settings.GOOGLEADWORDS_USER_AGENT,
-            client_customer_id=client_customer_id
+        client_id=settings.GOOGLEADWORDS_CLIENT_ID,
+        client_secret=settings.GOOGLEADWORDS_CLIENT_SECRET,
+        refresh_token=settings.GOOGLEADWORDS_REFRESH_TOKEN
     )
 
+    return AdWordsClient(
+        developer_token=settings.GOOGLEADWORDS_DEVELOPER_TOKEN,
+        oauth2_client=oauth2_client,
+        user_agent=settings.GOOGLEADWORDS_USER_AGENT,
+        client_customer_id=client_customer_id
+    )
 
 
 def paged_request(service, selector={}, number_results=100, start_index=0, retry=True, number_pages=False):
     """
     Yields paged data as retrieved from the Adwords API.
-    
+
     Alert Service Example:
-    
+
     selector = {
         'query': {
             'clientSpec': 'ALL',
@@ -54,9 +54,9 @@ def paged_request(service, selector={}, number_results=100, start_index=0, retry
     }
     for (data, selector) in paged_request(service='AlertService', number_results=selector=selector):
         print data
-    
+
     Targeting Ideas Service Example:
-    
+
     {{{
     selector = {
         'searchParameters': [
@@ -77,12 +77,12 @@ def paged_request(service, selector={}, number_results=100, start_index=0, retry
         'requestType': 'IDEAS',
         'requestedAttributeTypes': ['KEYWORD_TEXT', 'SEARCH_VOLUME'],
     }
-    
+
     for (data, selector) in paged_request('TargetingIdeaService', selector):
         print data
 
     }}}
-    
+
     @param service: A string representing the client service class, ie.. GetTargetingIdeaService
     @param selector: A dict of values used to specify the request to the API.
     @param number_results: Results per page.
@@ -98,15 +98,15 @@ def paged_request(service, selector={}, number_results=100, start_index=0, retry
         selector['paging']['startIndex'] = str(start_index)
     if number_results is not None:
         selector['paging']['numberResults'] = str(number_results)
-    
+
     more_pages = True
     page_number = 1
-    
+
     while more_pages:
         try:
             response = service.get(selector)
             yield response.entries, selector
-            
+
             # Now, get the next set of results
             start_index += number_results
             selector['paging']['startIndex'] = str(start_index)
@@ -115,9 +115,9 @@ def paged_request(service, selector={}, number_results=100, start_index=0, retry
                     more_pages = False
             else:
                 more_pages = start_index < int(response.totalNumEntries)
-                
+
             page_number += 1
-            
+
         except GoogleAdsError as e:
             if not retry or not hasattr(e, 'fault') or not hasattr(e.fault, 'detail') or not hasattr(e.fault.detail, 'ApiExceptionFault') or not hasattr(e.fault.detail.ApiExceptionFault, 'errors'):
                 raise

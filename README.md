@@ -4,18 +4,20 @@ A Django app that provides retrieval and storage of data from the Google Adwords
 
 ## Requirements
 
+- Django 1.7+
+- celery>=3.1.12
 - googleads==2.0.0
-- xmltodict==0.9.0
 - django-appconf==0.6
-- celery==3.1.12
+- [django-toolkit](https://bitbucket.org/alexhayes/django-toolkit)
 
 You can install these with the following;
 
 ```bash
+pip install Django
 pip install googleads==1.0.6
-pip install xmltodict==0.9.0
 pip install django-appconf==0.6
-pip install celery==3.1.12
+pip install celery
+pip install git+https://bitbucket.org/alexhayes/django-toolkit.git
 ```
 
 This README does not discuss the [configuration of celery](http://docs.celeryproject.org/en/latest/configuration.html) 
@@ -113,6 +115,10 @@ selector = {
 for (data, selector) in paged_request('TargetingIdeaService', selector):
     print data
 ```
+
+## Upgrading
+
+Please note that that v0.4.0 switched from money to djmoney
 
 ## Thanks
 
