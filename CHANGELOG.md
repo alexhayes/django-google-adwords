@@ -1,3 +1,14 @@
+# Release 0.4.0 - Wed Jan 28 15:25:00 AEDT 2015
+
+- Django 1.7 support
+- Now using django-money instead of python-money (which looks to be no longer supported and doesn't work in Django 1.7 - thanks t3kn0s).
+- Exception AdwordsDataInconsistency is now AdwordsDataInconsistencyError
+- Currency is no longer a default on each model Money field, it's now derived from the returned data
+- New settings GOOGLEADWORDS_CELERY_TIMELIMIT and GOOGLEADWORDS_CELERY_SOFTTIMELIMIT
+- Updated README with requirements and installation instructions
+- PEP8
+- Replaced the use of the 'money' module with 'djmoney' since the python-money module hasn't been updated for >3 years. Replaced the hard-coded currency with a variable
+
 # Release 0.3.4 - Mon Aug 18 11:06:19 EST 2014
 
 - Added some querysets
