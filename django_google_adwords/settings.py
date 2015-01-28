@@ -36,5 +36,8 @@ class GoogleAdwordsConf(AppConf):
     DATA_IMPORT_CELERY_QUEUE = 'celery'
     START_FINISH_CELERY_QUEUE = 'celery'
     
+    CELERY_TIMELIMIT = 60 * 60 * 3 # 3 HOURS
+    CELERY_SOFTTIMELIMIT = CELERY_TIMELIMIT
+    
     class Meta:
         prefix = 'GOOGLEADWORDS'
