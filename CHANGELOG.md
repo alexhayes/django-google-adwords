@@ -1,3 +1,7 @@
+# Release 0.4.1 - Mon Mar  2 08:42:34 AEDT 2015
+
+- Changed to use latest version of api
+
 # Release 0.4.0 - Wed Jan 28 15:25:00 AEDT 2015
 
 - Django 1.7 support
