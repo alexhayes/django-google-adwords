@@ -14,7 +14,7 @@ class GoogleAdwordsConf(AppConf):
     SYNC_AD = False
 
     # Defaults - probably don't need to be changed
-    CLIENT_VERSION = 'v201406'
+    CLIENT_VERSION = 'v201409'
     USER_AGENT = 'django-google-adwords'
     LOCK_TIMEOUT = 10 * 60 # 10 minutes
     LOCK_ID = "googleadwords-lock"
