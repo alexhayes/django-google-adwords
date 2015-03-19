@@ -494,6 +494,22 @@ class Account(models.Model):
 #             asdf.objects.account(self).contains_data(start, finish) and \
 #             asdf.objects.account(self).contains_data(start, finish)
 
+    def is_active(self):
+        return self.status == self.STATUS_ACTIVE
+
+    @property
+    def ad_groups(self):
+        """
+        Helper to return associated Ad Groups.
+        """
+        return AdGroup.objects.filter(campaign__account=self)
+
+    @property
+    def ads(self):
+        """
+        Helper to return associated Ads.
+        """
+        return Ad.objects.filter(ad_group__campaign__account=self)
 
 class Alert(models.Model):
     TYPE_ACCOUNT_ON_TARGET = 'ACCOUNT_ON_TARGET'
@@ -885,6 +901,12 @@ class Campaign(models.Model):
 
         return report_definition
 
+    @property
+    def ads(self):
+        """
+        Helper to return associated Ads.
+        """
+        return Ad.objects.filter(ad_group__campaign=self)
 
 class DailyCampaignMetrics(models.Model):
     BID_STRATEGY_TYPE_BUDGET_OPTIMIZER = 'auto'
