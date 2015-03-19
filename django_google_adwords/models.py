@@ -707,50 +707,50 @@ class DailyAccountMetrics(models.Model):
         def total_impressions_for_period(self, start, finish):
             return self.within_period(start, finish).aggregate(Sum('impressions'))
 
-        def daily_impressions_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(impressions=Sum('impressions'))
+        def daily_impressions_for_period(self, start, finish, order_by='day'):
+            return self.within_period(start, finish).order_by(order_by).values('day').annotate(impressions=Sum('impressions'))
 
         def total_clicks_for_period(self, start, finish):
             return self.within_period(start, finish).aggregate(Sum('clicks'))
 
-        def daily_clicks_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(clicks=Sum('clicks'))
+        def daily_clicks_for_period(self, start, finish, order_by='day'):
+            return self.within_period(start, finish).order_by(order_by).values('day').annotate(clicks=Sum('clicks'))
 
         def total_cost_for_period(self, start, finish):
             return self.within_period(start, finish).aggregate(Sum('cost'))
 
-        def daily_cost_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(cost=Sum('cost'))
+        def daily_cost_for_period(self, start, finish, order_by='day'):
+            return self.within_period(start, finish).order_by(order_by).values('day').annotate(cost=Sum('cost'))
 
         def average_ctr_for_period(self, start, finish):
             return self.within_period(start, finish).aggregate(Avg('ctr'))
 
-        def daily_average_ctr_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(ctr=Avg('ctr'))
+        def daily_average_ctr_for_period(self, start, finish, order_by='day'):
+            return self.within_period(start, finish).order_by(order_by).values('day').annotate(ctr=Avg('ctr'))
 
         def average_cpc_for_period(self, start, finish):
             return self.within_period(start, finish).aggregate(Avg('avg_cpc'))
 
-        def daily_average_cpc_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(cpc=Avg('avg_cpc'))
+        def daily_average_cpc_for_period(self, start, finish, order_by='day'):
+            return self.within_period(start, finish).order_by(order_by).values('day').annotate(cpc=Avg('avg_cpc'))
 
         def total_conversions_for_period(self, start, finish):
             return self.within_period(start, finish).aggregate(Sum('conversions'))
 
-        def daily_conversions_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(conversions=Sum('conversions'))
+        def daily_conversions_for_period(self, start, finish, order_by='day'):
+            return self.within_period(start, finish).order_by(order_by).values('day').annotate(conversions=Sum('conversions'))
 
         def average_click_conversion_rate_for_period(self, start, finish):
             return self.within_period(start, finish).aggregate(Avg('click_conversion_rate'))
 
-        def daily_average_click_conversion_rate_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(click_conversion_rate=Avg('click_conversion_rate'))
+        def daily_average_click_conversion_rate_for_period(self, start, finish, order_by='day'):
+            return self.within_period(start, finish).order_by(order_by).values('day').annotate(click_conversion_rate=Avg('click_conversion_rate'))
 
         def average_cost_conv_for_period(self, start, finish):
             return self.within_period(start, finish).aggregate(Avg('cost_conv'))
 
-        def daily_average_cost_conv_for_period(self, start, finish):
-            return self.within_period(start, finish).values('day').annotate(cost_conv=Avg('cost_conv'))
+        def daily_average_cost_conv_for_period(self, start, finish, order_by='day'):
+            return self.within_period(start, finish).order_by(order_by).values('day').annotate(cost_conv=Avg('cost_conv'))
 
         def average_search_lost_impression_share_budget(self, start, finish):
             return self.within_period(start, finish).aggregate(Avg('search_lost_is_budget'))
