@@ -1,3 +1,8 @@
+# Release 0.4.2 - Thu Mar 19 15:41:22 AEDT 2015
+
+- Ensured Account.QuerySet methods return data ordered by day.
+- Added helper methods on Account for ad_groups and ads and Campaign for ads.
+
 # Release 0.4.1 - Mon Mar  2 08:42:34 AEDT 2015
 
 - Changed to use latest version of api
