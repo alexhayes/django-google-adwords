@@ -3,7 +3,6 @@ from django.conf import settings
 
 
 def get_googleadwords_lock_id(model, idenitier):
-    return '%s-%s' % (settings.GOOGLEADWORDS_LOCK_ID, model.__name__)
     return '%s-%s-%s' % (settings.GOOGLEADWORDS_LOCK_ID, model.__name__, idenitier)
 
 
