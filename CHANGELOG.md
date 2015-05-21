@@ -1,3 +1,7 @@
+# Release 0.5.0 - Thu May 21 12:27:05 AEST 2015
+
+- Modified cache based locking mechanisms to improve speed.
+
 # Release 0.4.2 - Thu Mar 19 15:41:22 AEDT 2015
 
 - Ensured Account.QuerySet methods return data ordered by day.

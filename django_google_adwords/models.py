@@ -678,7 +678,7 @@ class DailyAccountMetrics(models.Model):
         def populate(self, data, account):
             device = data.get('Device')
             day = data.get('Day')
-            identifier = '%s-%s' % (device, day)
+            identifier = '%s-%s-%s' % (account.pk, device, day)
 
             while not acquire_googleadwords_lock(DailyAccountMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyAccountMetrics.__name__, identifier)
@@ -986,7 +986,7 @@ class DailyCampaignMetrics(models.Model):
 
         def populate(self, data, campaign):
             day = data.get('Day')
-            identifier = '%s' % day
+            identifier = '%s-%s' % (campaign.pk, day)
 
             while not acquire_googleadwords_lock(DailyCampaignMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyCampaignMetrics.__name__, identifier)
@@ -1232,7 +1232,7 @@ class DailyAdGroupMetrics(models.Model):
 
         def populate(self, data, ad_group):
             day = data.get('Day')
-            identifier = '%s' % day
+            identifier = '%s-%s' % (ad_group.pk, day)
 
             while not acquire_googleadwords_lock(DailyAdGroupMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyAdGroupMetrics.__name__, identifier)
@@ -1461,7 +1461,7 @@ class DailyAdMetrics(models.Model):
 
         def populate(self, data, ad):
             day = data.get('Day')
-            identifier = '%s' % day
+            identifier = '%s-%s' % (ad.pk, day)
 
             while not acquire_googleadwords_lock(DailyAdMetrics, identifier):
                 logger.debug("Waiting for acquire_googleadwords_lock: %s:%s", DailyAdMetrics.__name__, identifier)
