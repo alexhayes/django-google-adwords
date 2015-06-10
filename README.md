@@ -6,7 +6,7 @@ A Django app that provides retrieval and storage of data from the Google Adwords
 
 - Django 1.7+
 - celery>=3.1.12
-- googleads==2.0.0
+- googleads==3.4.1
 - django-appconf==0.6
 - [django-toolkit](https://bitbucket.org/alexhayes/django-toolkit)
 
@@ -14,7 +14,7 @@ You can install these with the following;
 
 ```bash
 pip install Django
-pip install googleads==1.0.6
+pip install googleads==3.4.1
 pip install django-appconf==0.6
 pip install celery
 pip install git+https://bitbucket.org/alexhayes/django-toolkit.git
@@ -23,7 +23,6 @@ pip install git+https://bitbucket.org/alexhayes/django-toolkit.git
 This README does not discuss the [configuration of celery](http://docs.celeryproject.org/en/latest/configuration.html) 
 but note that if you will be using the `sync` methods (discussed below) they use chords, thus you need to ensure you have 
 [CELERY_RESULT_BACKEND](http://docs.celeryproject.org/en/latest/configuration.html?highlight=celery_backend#celery-result-backend) set.
-
 ## Installation
 
 ```bash
