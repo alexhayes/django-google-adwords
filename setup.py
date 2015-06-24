@@ -1,61 +1,126 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+try:
+    from setuptools import setup, find_packages
+    from setuptools.command.test import test
+    is_setuptools = True
+except ImportError:
+    raise
+    from ez_setup import use_setuptools
+    use_setuptools()
+    from setuptools import setup, find_packages           # noqa
+    from setuptools.command.test import test              # noqa
+    is_setuptools = False
+
 import os
-from distutils.core import setup
+import sys
+import codecs
+
+NAME = 'django-google-adwords'
+extra = {}
+
+# -*- Classifiers -*-
+
+classes = """
+    Development Status :: 4 - Beta
+    Framework :: Django
+    Framework :: Django :: 1.7
+    Framework :: Django :: 1.8
+    License :: OSI Approved :: MIT License
+    Topic :: System :: Distributed Computing
+    Topic :: Software Development :: Object Brokering
+    Intended Audience :: Developers
+    Programming Language :: Python
+    Programming Language :: Python :: 2
+    Programming Language :: Python :: 2.7
+    Programming Language :: Python :: Implementation :: CPython
+    Operating System :: OS Independent
+    Operating System :: POSIX
+    Operating System :: Microsoft :: Windows
+    Operating System :: MacOS :: MacOS X
 """
-NOTE: Borrowed from django's setup.py
-"""
-root_dir = os.path.dirname(__file__)
-if root_dir != '':
-    os.chdir(root_dir)
-package_dir = 'django_google_adwords'
+classifiers = [s.strip() for s in classes.split('\n') if s]
 
-def fullsplit(path, result=None):
-    """
-    Split a pathname into components (the opposite of os.path.join)
-    in a platform-neutral way.
-    """
-    if result is None:
-        result = []
-    head, tail = os.path.split(path)
-    if head == '':
-        return [tail] + result
-    if head == path:
-        return result
-    return fullsplit(head, [tail] + result)
+# -*- Distribution Meta -*-
 
-EXCLUDE_FROM_PACKAGES = []
+import re
+re_meta = re.compile(r'__(\w+?)__\s*=\s*(.*)')
+re_vers = re.compile(r'VERSION\s*=.*?\((.*?)\)')
+re_doc = re.compile(r'^"""(.+?)"""')
+rq = lambda s: s.strip("\"'")
 
-def is_package(package_name):
-    for pkg in EXCLUDE_FROM_PACKAGES:
-        if package_name.startswith(pkg):
-            return False
-    return True
+def add_default(m):
+    attr_name, attr_value = m.groups()
+    return ((attr_name, rq(attr_value)), )
 
-# Compile the list of packages available, because distutils doesn't have
-# an easy way to do this.
-packages, package_data = [], {}
 
-for dirpath, dirnames, filenames in os.walk(package_dir):
-    # Ignore PEP 3147 cache dirs and those whose names start with '.'
-    dirnames[:] = [d for d in dirnames if not d.startswith('.') and d != '__pycache__']
-    parts = fullsplit(dirpath)
-    package_name = '.'.join(parts)
-    if '__init__.py' in filenames and is_package(package_name):
-        packages.append(package_name)
-    elif filenames:
-        relative_path = []
-        while '.'.join(parts) not in packages:
-            relative_path.append(parts.pop())
-        relative_path.reverse()
-        path = os.path.join(*relative_path)
-        package_files = package_data.setdefault('.'.join(parts), [])
-        package_files.extend([os.path.join(path, f) for f in filenames])
+def add_version(m):
+    v = list(map(rq, m.groups()[0].split(', ')))
+    return (('VERSION', '.'.join(v[0:3]) + ''.join(v[3:])), )
 
-setup(name="django-google-adwords",
-    version="0.1.0",
-    description=("A Django app that provides helpers for the Google Adwords API."),
-    author="Alex Hayes",
-    author_email="alex.hayes@roi.com.au",
-    url="https://bitbucket.org/alexhayes/django-google-adwords",
-    packages=packages,
-    package_data=package_data
-)
+
+def add_doc(m):
+    return (('doc', m.groups()[0]), )
+
+pats = {re_meta: add_default,
+        re_vers: add_version,
+        re_doc: add_doc}
+here = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(here, 'django_google_adwords/__init__.py')) as meta_fh:
+    meta = {}
+    for line in meta_fh:
+        if line.strip() == '# -eof meta-':
+            break
+        for pattern, handler in pats.items():
+            m = pattern.match(line.strip())
+            if m:
+                meta.update(handler(m))
+
+# -*- Installation Requires -*-
+
+py_version = sys.version_info
+
+
+def strip_comments(l):
+    return l.split('#', 1)[0].strip()
+
+
+def reqs(*f):
+    return [
+        r for r in (
+            strip_comments(l) for l in open(
+                os.path.join(os.getcwd(), 'requirements', *f)).readlines()
+        ) if r]
+
+install_requires = reqs('default.txt')
+
+# -*- Tests Requires -*-
+
+tests_require = reqs('test.txt')
+
+# -*- Long Description -*-
+
+if os.path.exists('README.rst'):
+    long_description = codecs.open('README.rst', 'r', 'utf-8').read()
+else:
+    long_description = 'See http://pypi.python.org/pypi/django-google-adwords'
+
+# -*- %%% -*-
+
+setup(
+    name=NAME,
+    version=meta['VERSION'],
+    description=meta['doc'],
+    author=meta['author'],
+    author_email=meta['contact'],
+    url=meta['homepage'],
+    platforms=['any'],
+    license='MIT',
+    packages=find_packages(exclude=['tests', 'tests.*', 'scripts']),
+    zip_safe=False,
+    install_requires=install_requires,
+    #tests_require=tests_require,
+    #test_suite='nose.collector',
+    classifiers=classifiers,
+    long_description=long_description)

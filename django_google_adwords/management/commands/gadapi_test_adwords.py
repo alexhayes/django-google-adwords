@@ -1,19 +1,20 @@
+from __future__ import print_function
 from django.core.management.base import BaseCommand, CommandError
 from ...helper import paged_request
-from optparse import make_option
+
 
 class Command(BaseCommand):
-    args = 'request-type'
-    help = "Test our adwords service."
-            
+    args = '[ideas|stats]'
+    help = "Test connection to Google Adwords API for the GetTargetingIdeaService."
+
     def handle(self, *args, **options):
         keywords = ['seo', 'adwords', 'adwords seo']
-        
+
         if len(args) == 0:
-            raise CommandError("read --help")
-        
+            raise CommandError("Expected args %s." % self.args)
+
         request_type = args[0]
-        
+
         if request_type == 'ideas':
             selector = {
                 'searchParameters': [
@@ -58,5 +59,4 @@ class Command(BaseCommand):
             raise CommandError('Unknown request type: %s' % request_type)
 
         for (data, selector) in paged_request('GetTargetingIdeaService', selector):
-            print data
-    
+            print(data)

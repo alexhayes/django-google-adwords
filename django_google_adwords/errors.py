@@ -20,7 +20,6 @@ class ValidationError(_ValidationError):
 
     def __init__(self, field_name, message):
         self.field_name = field_name
-        print 'Field error', self.field_name, message
         _ValidationError.__init__(self, message)
 
     def __str__(self):
