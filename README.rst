@@ -224,12 +224,12 @@ on your OS, on Ubuntu you can do the following;
 	sudo apt-get install python3.4 python3.4-dev
 	sudo apt-get install pypy pypy-dev
 
-Note that :code:`django-nose` issue `#133`_ and `#197` cause issues with some 
+Note that :code:`django-nose` issue `#133`_ and `#197`_ cause issues with some 
 tests thus the reason for `alexhayes/django-nose`_ being used in the 
 :code:`requirements/test.py` and :code:`requirements/test3.py`.
 
 .. _`#133`: https://github.com/django-nose/django-nose/issues/133
-.. _`#133`: https://github.com/django-nose/django-nose/issues/197
+.. _`#197`: https://github.com/django-nose/django-nose/issues/197
 .. _`alexhayes/django-nose`: https://github.com/alexhayes/django-nose  
 
 
