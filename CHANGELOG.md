@@ -1,3 +1,16 @@
+# Release 0.6.0 - Thu Jun 25 12:05:09 AEST 2015
+
+- Added tox support with tests for Python 2.7, 3.3, 3.4 and PyPy.
+- Updated README.md to README.rst in preparation for pypi support.
+- Added runtests.py script to run tests inside app.
+- Moved repository from bitbucket to github.
+- Removed random printing.
+- PEP8 support (mostly...).
+- Fixed issue that could occur with locking on memcache.
+- Now using django-cereal for more efficient communication over the wire in Celery.
+- Changed setting `GOOGLEADWORDS_START_FINISH_CELERY_QUEUE` to `GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE`.
+- Removed `Alert.sync_alerts()`, `Alert.get_selector()` and task `sync_alerts` as the services that these functions call have been discontinued in the Google API. The :code:`Alert` model remains in place so that existing alerts can be accessed if required.
+
 # Release 0.5.0 - Thu May 21 12:27:05 AEST 2015
 
 - Modified cache based locking mechanisms to improve speed.
