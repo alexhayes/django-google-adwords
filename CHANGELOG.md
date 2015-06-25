@@ -1,3 +1,8 @@
+# Release 0.6.1 - Thu Jun 25 13:49:10 AEST 2015
+
+- Updated README
+- Fixed links to django-nose issues.
+
 # Release 0.6.0 - Thu Jun 25 12:05:09 AEST 2015
 
 - Added tox support with tests for Python 2.7, 3.3, 3.4 and PyPy.
