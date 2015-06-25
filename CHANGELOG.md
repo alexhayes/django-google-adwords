@@ -1,3 +1,7 @@
+# Release 0.6.2 - Thu Jun 25 14:48:36 AEST 2015
+
+- Fixed issue with the finish_*_sync celery tasks not chaining as expected.
+
 # Release 0.6.1 - Thu Jun 25 13:49:10 AEST 2015
 
 - Updated README

@@ -189,7 +189,8 @@ class Account(models.Model):
                 locking_logger.debug("Releasing acquire_googleadwords_lock: %s:%s", Account.__name__, account.account_id)
                 release_googleadwords_lock(Account, account.account_id)
 
-    @task(name='Account.sync', ignore_result=True, queue=settings.GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE)
+    @task(name='Account.sync',
+          queue=settings.GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE)
     def sync(self, start=None, force=False, sync_account=True, sync_campaign=False, sync_adgroup=False, sync_ad=False):
         """
         Sync all data from Google Adwords API for this account.
@@ -215,7 +216,7 @@ class Account(models.Model):
                 account_start = self.account_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_ACCOUNT_SYNC_DAYS)
             elif force and start:
                 account_start = start
-            tasks.append(self.create_report_file.si(Account.get_selector(start=account_start)) | self.sync_account.s(this=self) | self.finish_account_sync.s(this=self))
+            tasks.append(self.create_report_file.si(Account.get_selector(start=account_start)) | self.sync_account.s(this=self) | self.finish_account_sync.si(this=self))
 
         """
         Campaign
@@ -227,7 +228,7 @@ class Account(models.Model):
                 campaign_start = self.campaign_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_CAMPAIGN_SYNC_DAYS)
             elif force and start:
                 campaign_start = start
-            tasks.append(self.create_report_file.si(Campaign.get_selector(start=campaign_start)) | self.sync_campaign.s(this=self) | self.finish_campaign_sync.s(this=self))
+            tasks.append(self.create_report_file.si(Campaign.get_selector(start=campaign_start)) | self.sync_campaign.s(this=self) | self.finish_campaign_sync.si(this=self))
 
         """
         Ad Group
@@ -239,7 +240,7 @@ class Account(models.Model):
                 ad_group_start = self.ad_group_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_ADGROUP_SYNC_DAYS)
             elif force and start:
                 ad_group_start = start
-            tasks.append(self.create_report_file.si(AdGroup.get_selector(start=ad_group_start)) | self.sync_ad_group.s(this=self) | self.finish_ad_group_sync.s(this=self))
+            tasks.append(self.create_report_file.si(AdGroup.get_selector(start=ad_group_start)) | self.sync_ad_group.s(this=self) | self.finish_ad_group_sync.si(this=self))
 
         """
         Ad
@@ -251,13 +252,12 @@ class Account(models.Model):
                 ad_start = self.ad_last_synced - timedelta(days=settings.GOOGLEADWORDS_EXISTING_AD_SYNC_DAYS)
             elif force and start:
                 ad_start = start
-            tasks.append(self.create_report_file.si(Ad.get_selector(start=ad_start)) | self.sync_ad.s(this=self) | self.finish_ad_sync.s(this=self))
+            tasks.append(self.create_report_file.si(Ad.get_selector(start=ad_start)) | self.sync_ad.s(this=self) | self.finish_ad_sync.si(this=self))
 
-        canvas = group(*tasks) | self.finish_sync.s(this=self)
+        canvas = group(*tasks) | self.finish_sync.si(this=self)
         return canvas.apply_async()
 
     @task(name='Account.start_sync',
-          ignore_result=True,
           queue=settings.GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE,
           serializer=DJANGO_CEREAL_PICKLE)
     def start_sync(self):
@@ -265,7 +265,6 @@ class Account(models.Model):
         self.save(update_fields=['status'])
 
     @task(name='Account.finish_sync',
-          ignore_result=True,
           queue=settings.GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE,
           serializer=DJANGO_CEREAL_PICKLE)
     @ensure_self
@@ -274,7 +273,6 @@ class Account(models.Model):
         self.save(update_fields=['updated', 'status'])
 
     @task(name='Account.finish_account_sync',
-          ignore_result=True,
           queue=settings.GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE,
           serializer=DJANGO_CEREAL_PICKLE)
     @ensure_self
@@ -286,7 +284,6 @@ class Account(models.Model):
         self.save(update_fields=['updated', 'account_last_synced'])
 
     @task(name='Account.finish_campaign_sync',
-          ignore_result=True,
           queue=settings.GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE,
           serializer=DJANGO_CEREAL_PICKLE)
     @ensure_self
@@ -298,7 +295,6 @@ class Account(models.Model):
         self.save(update_fields=['updated', 'campaign_last_synced'])
 
     @task(name='Account.finish_ad_group_sync',
-          ignore_result=True,
           queue=settings.GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE,
           serializer=DJANGO_CEREAL_PICKLE)
     @ensure_self
@@ -310,7 +306,6 @@ class Account(models.Model):
         self.save(update_fields=['updated', 'ad_group_last_synced'])
 
     @task(name='Account.finish_ad_sync',
-          ignore_result=True,
           queue=settings.GOOGLEADWORDS_HOUSEKEEPING_CELERY_QUEUE,
           serializer=DJANGO_CEREAL_PICKLE)
     @ensure_self
@@ -321,7 +316,7 @@ class Account(models.Model):
             self.ad_last_synced = ad_last_synced['day__max']
         self.save(update_fields=['updated', 'ad_last_synced'])
 
-    @task(name='Account.get_account_data',
+    @task(name='Account.create_report_file',
           queue=settings.GOOGLEADWORDS_REPORT_RETRIEVAL_CELERY_QUEUE,
           serializer=DJANGO_CEREAL_PICKLE)
     def create_report_file(self, report_definition):
