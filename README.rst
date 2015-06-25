@@ -2,7 +2,14 @@
 django-google-adwords
 =====================
 
-Django modelling and helpers for the Google Adwords API.
+`Django`_ modelling and helpers for the `Google Adwords API`_.
+
+The provided models include methods to sync data, using `Celery`_ tasks, from the
+Google Adwords API to the local models.
+
+.. _`Django`: https://www.djangoproject.com/
+.. _`Google Adwords API`: https://developers.google.com/adwords/api/
+.. _`Celery`: http://www.celeryproject.org
 
 
 Installation
@@ -27,6 +34,13 @@ From github;
 Settings
 ========
 
+:code:`django-google-adwords` uses `django-appconf`_ to set default settings, of
+which there are quite a lot. Out of the box you only need to set the required
+settings however you will most likely want to change the Celery queues settings.
+
+.. _`django-appconf`: http://django-appconf.readthedocs.org/en/latest/
+
+
 Required
 --------
 
@@ -34,14 +48,14 @@ You must place the following in your django settings file.
 
 .. code-block:: python
 
-	GOOGLEADWORDS_CLIENT_ID = 'your-adwords-client-id'
-	GOOGLEADWORDS_CLIENT_SECRET = 'your-adwords-client-secret'
-	GOOGLEADWORDS_REFRESH_TOKEN = 'your-adwords-refresh-token'
-	GOOGLEADWORDS_DEVELOPER_TOKEN = 'your-adwords-developer-token'
-	GOOGLEADWORDS_CLIENT_CUSTOMER_ID = 'your-adwords-client-customer-id'
+	GOOGLEADWORDS_CLIENT_ID          = 'your-adwords-client-id'          # ie.. xyz123.apps.googleusercontent.com
+	GOOGLEADWORDS_CLIENT_SECRET      = 'your-adwords-client-secret'      # xyz123xyz123xyz123xyz123
+	GOOGLEADWORDS_REFRESH_TOKEN      = 'your-adwords-refresh-token'      # 1/xyz123xyz123xyz123xyz123xyz123xyz123xyz123x
+	GOOGLEADWORDS_DEVELOPER_TOKEN    = 'your-adwords-developer-token'    # 1234567890
+	GOOGLEADWORDS_CLIENT_CUSTOMER_ID = 'your-adwords-client-customer-id' # xyz123xyz123xyz123xyz1
 
-If you don't know these values already you'll probably want to read the Google Adwords `OAuth 2.0 Authentication`_
-documentation.
+If you don't know these values already you'll probably want to read the Google
+Adwords `OAuth 2.0 Authentication`_ documentation.
 
 .. _`OAuth 2.0 Authentication`: https://developers.google.com/adwords/api/docs/guides/authentication
 
@@ -49,8 +63,8 @@ documentation.
 Other Settings
 --------------
 
-Other settings can be found in :code:`django_google_adwords.settings` and can be overridden by
-putting them in your settings file prepended with :code:`GOOGLEADWORDS_`.
+Other settings can be found in :code:`django_google_adwords.settings` and can be
+overridden by putting them in your settings file prepended with :code:`GOOGLEADWORDS_`.
 
 
 Celery
@@ -82,8 +96,8 @@ With the above you could run the following workers;
 .. code-block:: python
 
 	celery worker --app myapp --queues adwords_retrieval &
-    celery worker --app myapp --queues adwords_import &
-    celery worker --app myapp --queues adwords_housekeeping &
+	celery worker --app myapp --queues adwords_import &
+	celery worker --app myapp --queues adwords_housekeeping &
 
 
 .. _`Celery`: http://www.celeryproject.org
@@ -95,8 +109,8 @@ Usage
 Storing local data
 ------------------
 
-The provided models include methods to sync data from the Google Adwords API to the local models 
-so that it can be queried at a later stage.
+The provided models include methods to sync data from the Google Adwords API to
+the local models so that it can be queried at a later stage.
 
 .. code-block:: python
 
@@ -104,8 +118,8 @@ so that it can be queried at a later stage.
 	account = Account.objects.create(account_id=account_id)
 	result = account.sync() # returns a celery AsyncResult
 
-Depending on the amount of data contained with your Adwords account the above could take quite
-some time to populate! Advice is to monitor the celery task.
+Depending on the amount of data contained with your Adwords account the above
+could take quite some time to populate! Advice is to monitor the celery task.
 
 You can control what data is sync'd with the following settings:
 
@@ -115,18 +129,29 @@ You can control what data is sync'd with the following settings:
 	GOOGLEADWORDS_SYNC_CAMPAIGN = True   # Sync campaign data
 	GOOGLEADWORDS_SYNC_ADGROUP = True    # Sync adgroup data
 	GOOGLEADWORDS_SYNC_AD = False        # Sync ad data - note this can take a LOOOONNNNG time if you have lots of ads... 
-	
-	GOOGLEADWORDS_NEW_ACCOUNT_ACCOUNT_SYNC_DAYS = 61
-	GOOGLEADWORDS_NEW_ACCOUNT_CAMPAIGN_SYNC_DAYS = 61
-	GOOGLEADWORDS_NEW_ACCOUNT_AD_GROUP_SYNC_DAYS = 31
-	GOOGLEADWORDS_NEW_ACCOUNT_AD_SYNC_DAYS = 3
-	GOOGLEADWORDS_EXISTING_ACCOUNT_SYNC_DAYS = 3
+
+Once you have created an account or have multiple accounts, you can, using
+`Celery Beat`_ have the accounts sync'd at regular intervals by setting the
+:code:`CELERYBEAT_SCHEDULE` similar to the following;
+
+.. code-block:: python
+
+	from celery.schedules import crontab
+    CELERYBEAT_SCHEDULE = {
+        'sync_google_adwords_data': {
+            'task': 'django_google_adwords.tasks.sync_chain',
+            'schedule': crontab(minute=5, hour=0),
+        },
+    }
+
+.. _`Celery Beat`: http://celery.readthedocs.org/en/latest/userguide/periodic-tasks.html
 
 
 Paged data
 ----------
 
-To use the API but not store data in the models you can page through yielded data with the following; 
+To use the API but not store data in the models you can page through yielded data
+with the following;
 
 .. code-block:: python
 
