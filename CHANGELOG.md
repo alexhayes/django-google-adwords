@@ -1,3 +1,7 @@
+# Release 0.6.3 - Thu Jun 25 15:42:56 AEST 2015
+
+- Now using django-appconf==1.0.1
+
 # Release 0.6.2 - Thu Jun 25 14:48:36 AEST 2015
 
 - Fixed issue with the finish_*_sync celery tasks not chaining as expected.
