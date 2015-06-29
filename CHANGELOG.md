@@ -1,3 +1,7 @@
+# Release 0.6.4 - Mon Jun 29 13:25:11 AEST 2015
+
+- Fixes #2: auto_now, auto_now_add, and default are mutually exclusive.
+
 # Release 0.6.3 - Thu Jun 25 15:42:56 AEST 2015
 
 - Now using django-appconf==1.0.1
