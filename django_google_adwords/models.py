@@ -152,7 +152,7 @@ class Account(models.Model):
     ad_group_last_synced = models.DateField(blank=True, null=True)
     ad_last_synced = models.DateField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = QuerySetManager()
 
@@ -583,7 +583,7 @@ class Alert(models.Model):
     severity = models.CharField(max_length=100, choices=SEVERITY_CHOICES)
     occurred = models.DateTimeField()
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = QuerySetManager()
 
@@ -624,7 +624,7 @@ class DailyAccountMetrics(models.Model):
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
     content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
     content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
     cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, help_text='Cost / est. total conv.', null=True, blank=True)
@@ -763,7 +763,7 @@ class Campaign(models.Model):
     campaign_state = models.CharField(max_length=20, choices=STATE_CHOICES)
     budget = MoneyField(max_digits=12, decimal_places=2, default=0, help_text='Budget', null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = QuerySetManager()
 
@@ -932,7 +932,7 @@ class DailyCampaignMetrics(models.Model):
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
     content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
     content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
     cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, help_text='Cost / est. total conv.', null=True, blank=True)
@@ -1008,7 +1008,7 @@ class AdGroup(models.Model):
     ad_group = models.CharField(max_length=255, help_text='Ad group name', null=True, blank=True)
     ad_group_state = models.CharField(max_length=20, choices=STATE_CHOICES, null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = QuerySetManager()
 
@@ -1185,7 +1185,7 @@ class DailyAdGroupMetrics(models.Model):
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
     content_impr_share = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Impr. share')
     content_lost_is_rank = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Content Lost IS (rank)')
     cost_est_total_conv = MoneyField(max_digits=12, decimal_places=2, default=0, help_text='Cost / est. total conv.', null=True, blank=True)
@@ -1296,7 +1296,7 @@ class Ad(models.Model):
     description_line_1 = models.TextField(help_text='Description line 1', null=True, blank=True)
     description_line_2 = models.TextField(help_text='Description line 2', null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = QuerySetManager()
 
@@ -1441,7 +1441,7 @@ class DailyAdMetrics(models.Model):
     impressions = models.BigIntegerField(help_text='Impressions', null=True, blank=True)
     day = models.DateField(help_text='When this metric occurred')
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
     value_converted_click = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / converted click')
     value_conv = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Value / conv.')
     view_through_conv = models.BigIntegerField(help_text='View-through conv.', null=True, blank=True)

@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 import os
 
@@ -44,7 +44,6 @@ class DjangoGoogleAdwordsTestCase(TransactionTestCase):
         account = Account.objects.get(pk=1)
         self.assertEqual(account.account, 'example.com.au')
         self.assertEqual(account.currency, 'AUD')
-        self.assertIsInstance(account.account_last_synced, date)
 
     def test_campaign_create(self):
         report_file = _get_report_file('campaign_report.gz')
@@ -531,6 +530,7 @@ class DjangoGoogleAdwordsTestCase(TransactionTestCase):
         self.assertEqual(ad_group_metric.ctr, Decimal('0.00'))
         self.assertEqual(ad_group_metric.impressions, 100)
 
+
     def test_daily_ad_metrics_create(self):
         # Run the Ad report populate
         report_file = _get_report_file('ad_report.gz')
@@ -604,3 +604,15 @@ class DjangoGoogleAdwordsTestCase(TransactionTestCase):
         self.assertEqual(ad_metric.value_converted_click, Decimal('0.00'))
         self.assertEqual(ad_metric.value_conv, Decimal('0.0'))
         self.assertEqual(ad_metric.view_through_conv, None)
+
+    def test_auto_now(self):
+        account = Account.objects.create(account_id=1234)
+        #: :type account: Account
+        self.assertIsInstance(account.created, datetime)
+        self.assertIsInstance(account.updated, datetime)
+        created = account.created
+        updated = account.updated
+        account.account_id = 4321
+        account.save()
+        self.assertEqual(account.created, created)
+        self.assertNotEqual(account.updated, updated)
