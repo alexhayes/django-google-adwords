@@ -16,7 +16,7 @@ Installation
 ============
 
 You can install django-google-adwords either via the Python Package Index (PyPI)
-or from bitbucket.
+or from github.
 
 To install using pip;
 
@@ -28,7 +28,7 @@ From github;
 
 .. code-block:: bash
 
-    pip install git+https://bitbucket.org/alexhayes/django-google-adwords.git
+    pip install git+https://github.com/alexhayes/django-google-adwords.git
 
 
 Settings
