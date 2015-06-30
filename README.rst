@@ -4,19 +4,17 @@ django-google-adwords
 
 `Django`_ modelling and helpers for the `Google Adwords API`_.
 
-The provided models include methods to sync data, using `Celery`_ tasks, from the
-Google Adwords API to the local models.
+Using Celery_ to process tasks in the background the provided models include
+methods to retrieve and store data for Accounts, Campaigns, Ad Groups and Ads to
+your database for further processing.
 
-.. _`Django`: https://www.djangoproject.com/
-.. _`Google Adwords API`: https://developers.google.com/adwords/api/
-.. _`Celery`: http://www.celeryproject.org
-
+Currently Google Adwords API version v201506_ is supported.
 
 Installation
 ============
 
 You can install django-google-adwords either via the Python Package Index (PyPI)
-or from bitbucket.
+or from github.
 
 To install using pip;
 
@@ -28,7 +26,7 @@ From github;
 
 .. code-block:: bash
 
-    pip install git+https://bitbucket.org/alexhayes/django-google-adwords.git
+    pip install git+https://github.com/alexhayes/django-google-adwords.git
 
 
 Settings
@@ -70,7 +68,7 @@ overridden by putting them in your settings file prepended with :code:`GOOGLEADW
 Celery
 ------
 
-`Celery`_ installation and configuration is somewhat out of the scope of this 
+Celery_ installation and configuration is somewhat out of the scope of this
 document but in order to sync Google Adwords data into models you will need a
 working Celery.
 
@@ -182,21 +180,11 @@ with the following;
 Google Adwords API Versions
 ===========================
 
-The intention is to keep in sync with the latest available Google Adwords API 
-versions.
+The intention is to keep in sync with the latest available Google Adwords API
+versions - currently this is v201506_
 
 To do this it's highly possible we'll need to break backwards compatibility as
-the API often does!
-
-Currently we support `v201409`_ however this will `sunset on 14 July 2015`_.
-
-Support for `v201502`_ will be added very soon but note there will be a number
-of `backwards compatibility changes`_ that will most likely break your code.
-
-.. _`v201409`: http://googleadsdeveloper.blogspot.com.au/2014/10/announcing-v201409-of-adwords-api.html
-.. _`sunset on 14 July 2015`: https://developers.google.com/adwords/api/docs/sunset-dates
-.. _`v201502`: http://googleadsdeveloper.blogspot.com.au/2015/03/announcing-v201502-of-adwords-api.html
-.. _`backwards compatibility changes`: https://developers.google.com/adwords/api/docs/guides/migration/v201502
+the API can potentially do that.
 
 
 Backwards Incompatibility Changes
@@ -236,7 +224,7 @@ And to run the full test suite, you can then run;
 	tox
 
 Note tox tests for Python 2.7, 3.3, 3.4 and PyPy for Django 1.7 and 1.8. 
-You'll need to consolute the docs for installation of these Python versions
+You'll need to consult the docs for installation of these Python versions
 on your OS, on Ubuntu you can do the following;
 
 .. code-block:: bash
@@ -271,3 +259,8 @@ Authors
 
 - Jeremy Storer <storerjeremy@gmail.com>
 - Alex Hayes <alex@alution.com>
+
+.. _`Django`: https://www.djangoproject.com/
+.. _`Google Adwords API`: https://developers.google.com/adwords/api/
+.. _`Celery`: http://www.celeryproject.org
+.. _v201506: https://developers.google.com/adwords/api/docs/reference/#v201506
