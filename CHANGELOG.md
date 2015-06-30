@@ -1,3 +1,8 @@
+# Release 0.7.0 - Tue Jun 30 14:33:02 AEST 2015
+
+- Support for v201506.
+- Fixed references to bitbucket in README
+
 # Release 0.6.4 - Mon Jun 29 13:25:11 AEST 2015
 
 - Fixes #2: auto_now, auto_now_add, and default are mutually exclusive.
