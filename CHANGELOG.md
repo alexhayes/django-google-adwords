@@ -1,3 +1,7 @@
+# Release 0.7.1 - Wed Jul  1 13:41:20 AEST 2015
+
+- Updated django-cereal to 0.1.2
+
 # Release 0.7.0 - Tue Jun 30 14:33:02 AEST 2015
 
 - Support for v201506.
