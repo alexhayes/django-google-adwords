@@ -1,3 +1,7 @@
+# Release 0.7.2 - Mon Jul 27 08:24:50 AEST 2015
+
+- Fixed incorrect googleads version in requirements to 3.5.0.
+
 # Release 0.7.1 - Wed Jul  1 13:41:20 AEST 2015
 
 - Updated django-cereal to 0.1.2
